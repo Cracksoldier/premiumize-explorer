@@ -1,0 +1,119 @@
+name: Linux AppImage
+
+on:
+  push:
+    branches: [main]
+    tags:     ['v*']
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write   # needed for softprops/action-gh-release
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # xcb platform plugin + OpenGL + font stack
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libgl-dev \
+            libxcb1-dev libxcb-glx0-dev libxcb-icccm4-dev libxcb-image0-dev \
+            libxcb-keysyms1-dev libxcb-randr0-dev libxcb-render-util0-dev \
+            libxcb-shape0-dev libxcb-shm0-dev libxcb-sync-dev libxcb-util-dev \
+            libxcb-xfixes0-dev libxcb-xinerama0-dev libxcb-xkb-dev \
+            libxkbcommon-dev libxkbcommon-x11-dev \
+            libfontconfig-dev libfreetype-dev libdbus-1-dev
+
+      # install-qt-action adds Qt's bin/ to PATH and exports:
+      #   Qt6_Dir  →  lib/cmake/Qt6  (used as CMAKE_PREFIX_PATH)
+      #   QMAKE    →  absolute path to qmake binary
+      - name: Install Qt 6.7.3
+        uses: jurplel/install-qt-action@v4
+        with:
+          version:  '6.7.3'
+          host:     'linux'
+          target:   'desktop'
+          arch:     'linux_gcc_64'
+          modules:  'qtsvg'
+          cache:    true
+
+      - name: Configure (Release)
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="${{ env.Qt6_Dir }}"
+
+      # Qlementine is fetched via FetchContent during configure — no extra step needed
+      - name: Build
+        run: cmake --build build --parallel
+
+      # ── AppDir ──────────────────────────────────────────────────────────
+      - name: Assemble AppDir
+        run: |
+          mkdir -p AppDir/usr/bin \
+                   AppDir/usr/share/applications \
+                   AppDir/usr/share/icons/hicolor/256x256/apps
+
+          cp build/src/premiumize-explorer AppDir/usr/bin/
+
+          cat > AppDir/usr/share/applications/premiumize-explorer.desktop <<'EOF'
+          [Desktop Entry]
+          Type=Application
+          Name=Premiumize Explorer
+          Exec=premiumize-explorer
+          Icon=premiumize-explorer
+          Categories=Network;FileTransfer;
+          Terminal=false
+          EOF
+
+          # Placeholder icon (solid blue square). Replace with a real icon if
+          # one is later added to the repo (e.g. cp assets/icon.png ...).
+          convert -size 256x256 xc:'#1a6faf' \
+            AppDir/usr/share/icons/hicolor/256x256/apps/premiumize-explorer.png
+
+      # ── linuxdeploy ─────────────────────────────────────────────────────
+      # GitHub Actions runners have no FUSE → AppImages cannot run directly.
+      # Solution: extract both AppImages with --appimage-extract, then add
+      # their usr/bin/ to PATH so linuxdeploy finds the Qt plugin by name.
+      - name: Download and extract linuxdeploy
+        run: |
+          curl -fsSL -o linuxdeploy.AppImage \
+            "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage"
+          curl -fsSL -o linuxdeploy-plugin-qt.AppImage \
+            "https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage"
+          chmod +x linuxdeploy.AppImage linuxdeploy-plugin-qt.AppImage
+
+          ./linuxdeploy.AppImage --appimage-extract
+          mv squashfs-root ld-root
+          ./linuxdeploy-plugin-qt.AppImage --appimage-extract
+          mv squashfs-root ld-qt-root
+
+      - name: Build AppImage
+        env:
+          QMAKE: ${{ env.QMAKE }}
+          # Tell Qt plugin to also deploy the SVG image format plugin
+          EXTRA_QT_PLUGINS: svg
+          OUTPUT: premiumize-explorer-linux-x86_64.AppImage
+        run: |
+          export PATH="$(pwd)/ld-root/usr/bin:$(pwd)/ld-qt-root/usr/bin:$PATH"
+          linuxdeploy \
+            --appdir AppDir \
+            --plugin qt \
+            --output appimage
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: premiumize-explorer-linux-x86_64
+          path: premiumize-explorer-linux-x86_64.AppImage
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: premiumize-explorer-linux-x86_64.AppImage
+          generate_release_notes: true

@@ -1,0 +1,64 @@
+name: Windows
+
+on:
+  push:
+    branches: [main]
+    tags:     ['v*']
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write   # needed for softprops/action-gh-release
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # install-qt-action adds Qt's bin/ to PATH (windeployqt lives there)
+      # and exports Qt6_Dir for CMAKE_PREFIX_PATH.
+      # win64_msvc2022_64 matches the toolchain on windows-latest (VS 2022).
+      - name: Install Qt 6.7.3
+        uses: jurplel/install-qt-action@v4
+        with:
+          version:  '6.7.3'
+          host:     'windows'
+          target:   'desktop'
+          arch:     'win64_msvc2022_64'
+          modules:  'qtsvg'
+          cache:    true
+
+      - name: Configure (Release)
+        run: |
+          cmake -B build `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_PREFIX_PATH="${{ env.Qt6_Dir }}"
+
+      # VS generator is multi-config; --config Release selects the right output.
+      # The exe lands in build/src/Release/premiumize-explorer.exe.
+      - name: Build
+        run: cmake --build build --parallel --config Release
+
+      # windeployqt copies all required Qt DLLs, platform plugins, and
+      # --compiler-runtime also copies the MSVC CRT DLLs → no VS install needed.
+      - name: Run windeployqt
+        run: windeployqt --release --compiler-runtime build\src\Release\premiumize-explorer.exe
+
+      - name: Zip deployment directory
+        run: |
+          Compress-Archive `
+            -Path "build\src\Release\*" `
+            -DestinationPath "premiumize-explorer-windows-x64.zip"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: premiumize-explorer-windows-x64
+          path: premiumize-explorer-windows-x64.zip
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: premiumize-explorer-windows-x64.zip
+          generate_release_notes: true
