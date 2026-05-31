@@ -48,17 +48,19 @@ TransferProgressWindow  (non-modal Qt::Tool window)
 | `AppConfig` | `src/config/AppConfig.hpp` | Singleton QSettings facade. Writes to `~/.config/premiumize-explorer/premiumize-explorer.ini`. |
 | `PremiumizeModel` | `src/model/PremiumizeModel.hpp` | `QAbstractListModel` for the cloud pane (flat list, one folder at a time). Emits `application/x-premiumize-items` MIME for drag-and-drop. |
 | `FilePane` | `src/ui/FilePane.hpp` | Reusable widget used for both panes. `PaneType::Local` drives `QFileSystemModel`; `PaneType::Cloud` drives `PremiumizeModel`. Handles all drag/drop events and emits typed signals upward. |
-| `TransferManager` | `src/transfer/TransferManager.hpp` | Job queue, max 2 concurrent. Holds `UploadJob` / `DownloadJob` instances and forwards their progress signals with a stable `jobId`. |
-| `UploadJob` | `src/transfer/UploadJob.hpp` | Two-step upload: calls `requestUploadInfo` → receives token/URL → POSTs `QHttpMultiPart`. Uses its own `QNetworkAccessManager`. |
+| `TransferManager` | `src/transfer/TransferManager.hpp` | Job queue, max 2 concurrent. Job pointers are passed explicitly to `onJobFinished` — never use `QObject::sender()` here, it is unreliable when called from a regular member function. |
+| `UploadJob` | `src/transfer/UploadJob.hpp` | Two-step upload: fetches token/URL via `PremiumizeApi::fetchUploadInfo()` (private reply), then POSTs `QHttpMultiPart`. Uses its own `QNetworkAccessManager`. |
 | `DownloadJob` | `src/transfer/DownloadJob.hpp` | Streams `QNetworkReply` bytes directly to a `QFile`. Reply comes from `PremiumizeApi::startDownload`. |
 | `MainWindow` | `src/ui/MainWindow.hpp` | Wires everything together. Owns all subsystem instances. Connects `PremiumizeApi` signals to pane updates and `FilePane` signals to API calls / transfer enqueuing. |
 
 ### Upload flow (two-step API requirement)
 
 1. `TransferManager::enqueueUpload` → creates `UploadJob`
-2. `UploadJob::start` → calls `api_->requestUploadInfo(folderId)`
-3. `PremiumizeApi` emits `uploadInfoReady(token, url)`
-4. `UploadJob` constructs `QHttpMultiPart` with `token` field + file, POSTs to `url`
+2. `UploadJob::start` → calls `api_->fetchUploadInfo(folderId)`, which returns a `QNetworkReply*` owned by this job only (not a shared signal)
+3. `UploadJob` parses the reply, validates `token` and `url`, then calls `startUpload()`
+4. `startUpload` constructs `QHttpMultiPart` with `token` field + file, POSTs to `url` via its own `QNetworkAccessManager`
+
+**Do not use `requestUploadInfo` from UploadJob** — that emits a shared signal (`uploadInfoReady`) which would be received by all concurrently running upload jobs, giving them all the same one-time token. `fetchUploadInfo` returns a private reply instead.
 
 ### Startup sequence
 
@@ -68,6 +70,14 @@ TransferProgressWindow  (non-modal Qt::Tool window)
 
 - Local → Cloud: `text/uri-list` dropped on cloud `FilePane` → `uploadRequested` signal
 - Cloud → Local: `application/x-premiumize-items` (JSON array of `{id, name, isFolder, link, size}`) dropped on local `FilePane` → `downloadRequested` signal per non-folder item
+
+### Model index safety
+
+`PremiumizeModel::itemAt(row)` uses `Q_ASSERT` + `std::vector::at()` (throws `std::out_of_range` on bad access). All call sites in `FilePane` guard with an explicit row-range check before calling `itemAt`. When adding new call sites, always check `row >= 0 && row < cloudModel_->rowCount()` first — the model can be reset asynchronously by an in-flight `listFolder` reply.
+
+### deleteItem signal contract
+
+`PremiumizeApi::deleteItem` uses a **single** `QNetworkReply::finished` handler that emits either `deleteFinished(true)` on success or `deleteFinished(false, error)` on failure. It does **not** call `handleJsonReply` (which would also emit `networkError`, causing a double response). Do not add a second `connect` to a reply that already has one — both handlers fire on the same signal emission.
 
 ### Theme
 

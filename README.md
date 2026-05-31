@@ -1,0 +1,98 @@
+# premiumize-explorer
+
+A desktop file browser for [Premiumize.me](https://www.premiumize.me) cloud storage, built with C++20 and Qt6.
+
+![Two-pane layout: local filesystem on the left, Premiumize.me cloud on the right](.github/screenshot.png)
+
+## Features
+
+- **Two-pane layout** inspired by Total Commander — local filesystem on the left, Premiumize.me cloud on the right
+- **Drag & drop** to upload (local → cloud) or download (cloud → local)
+- **Non-blocking transfer progress window** showing speed, ETA, elapsed time, and bytes transferred per file
+- **Folder navigation** with breadcrumb path label and Up button
+- **Cloud operations**: create folder, delete file/folder, context menu
+- **API key stored** in `~/.config/premiumize-explorer/premiumize-explorer.ini` — entered once on first launch
+- **Qlementine** dark theme applied throughout
+
+## Requirements
+
+| Dependency | Version |
+|---|---|
+| CMake | 3.21+ |
+| Qt | 6.5+ (Core, Widgets, Network, Svg) |
+| C++ compiler | GCC or Clang with C++20 support |
+| [Qlementine](https://github.com/oclero/qlementine) | fetched automatically by CMake |
+
+## Build
+
+```bash
+# First-time configure (downloads Qlementine, ~30s on a fresh clone)
+cmake -B build/debug -DCMAKE_BUILD_TYPE=Debug
+
+# Build
+cmake --build build/debug --parallel
+
+# Run
+./build/debug/src/premiumize-explorer
+```
+
+Release build:
+
+```bash
+cmake -B build/release -DCMAKE_BUILD_TYPE=Release
+cmake --build build/release --parallel
+```
+
+Optional: enable AddressSanitizer with `-DPMEX_ENABLE_ASAN=ON`.
+
+## First launch
+
+On first run you will be prompted for your Premiumize.me API key. You can find it at **[premiumize.me/account](https://www.premiumize.me/account)** under the **API** section. The key is saved to disk immediately so you won't be asked again.
+
+To change the key later: **File → Change API Key…**
+
+## Usage
+
+| Action | How |
+|---|---|
+| Navigate into a folder | Double-click |
+| Go up | Click **↑ Up** or right-click → navigate |
+| Upload files | Drag files from the local pane and drop them onto the cloud pane |
+| Download a file | Drag a file from the cloud pane and drop it onto the local pane, or right-click → **Download** |
+| Create a cloud folder | Click **+ Folder** in the cloud pane toolbar or right-click → **New Folder…** |
+| Delete a cloud item | Select it and click **Delete**, or right-click → **Delete** |
+| View transfer progress | Click **Transfers ▼** in the main toolbar |
+| Refresh the cloud view | Click **⟳** in the cloud pane toolbar or **⟳ Refresh** in the main toolbar |
+
+## Configuration file
+
+Located at `~/.config/premiumize-explorer/premiumize-explorer.ini` on Linux and `%APPDATA%\premiumize-explorer\premiumize-explorer.ini` on Windows.
+
+```ini
+[auth]
+api_key=your_key_here
+
+[ui]
+last_local_path=/home/user/Downloads
+window_geometry=...
+splitter_sizes=...
+```
+
+## Project structure
+
+```
+src/
+├── api/          PremiumizeApi — all HTTP calls, fire-and-emit
+├── config/       AppConfig — QSettings singleton
+├── model/        PremiumizeModel — QAbstractListModel for the cloud pane
+├── transfer/     TransferManager, UploadJob, DownloadJob
+└── ui/           MainWindow, FilePane, TransferProgressWindow, dialogs
+```
+
+## API
+
+Uses the [Premiumize.me REST API](https://www.premiumize.me/api) with Bearer token authentication. All requests are async via `QNetworkAccessManager`; results are delivered through Qt signals.
+
+## License
+
+MIT
