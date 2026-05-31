@@ -17,7 +17,6 @@ void PremiumizeModel::populate(const api::FolderListing& listing)
     items_           = listing.content;
     currentFolderId_ = listing.folderId;
     parentFolderId_  = listing.parentId;
-    showUpEntry_     = !listing.folderId.isEmpty() || !listing.parentId.isEmpty();
     endResetModel();
 }
 
@@ -33,16 +32,16 @@ void PremiumizeModel::clear()
 int PremiumizeModel::rowCount(const QModelIndex& parent) const
 {
     if (parent.isValid()) return 0;
-    return static_cast<int>(items_.size()) + (showUpEntry_ ? 1 : 0);
+    return static_cast<int>(items_.size()) + (showUpEntry() ? 1 : 0);
 }
 
 QVariant PremiumizeModel::data(const QModelIndex& index, int role) const
 {
     if (!index.isValid() || index.row() < 0 || index.row() >= rowCount())
         return {};
-    if (showUpEntry_ && index.row() == 0)
+    if (showUpEntry() && index.row() == 0)
         return role == Qt::DisplayRole ? QStringLiteral("↑ Up") : QVariant{};
-    const int src = index.row() - (showUpEntry_ ? 1 : 0);
+    const int src = index.row() - (showUpEntry() ? 1 : 0);
     const auto& item = items_[static_cast<std::size_t>(src)];
     switch (role) {
         case NameRole:     return item.name;
@@ -58,7 +57,7 @@ QVariant PremiumizeModel::data(const QModelIndex& index, int role) const
 
 Qt::ItemFlags PremiumizeModel::flags(const QModelIndex& index) const
 {
-    if (showUpEntry_ && index.isValid() && index.row() == 0)
+    if (showUpEntry() && index.isValid() && index.row() == 0)
         return Qt::ItemIsEnabled | Qt::ItemIsSelectable;
     auto base = QAbstractListModel::flags(index);
     if (index.isValid())
@@ -83,8 +82,8 @@ QMimeData* PremiumizeModel::mimeData(const QModelIndexList& indexes) const
     QJsonArray arr;
     for (const auto& idx : indexes) {
         if (!idx.isValid()) continue;
-        if (showUpEntry_ && idx.row() == 0) continue;
-        const int src = idx.row() - (showUpEntry_ ? 1 : 0);
+        if (showUpEntry() && idx.row() == 0) continue;
+        const int src = idx.row() - (showUpEntry() ? 1 : 0);
         if (src < 0 || src >= static_cast<int>(items_.size())) continue;
         const auto& item = items_[static_cast<std::size_t>(src)];
         QJsonObject obj;
@@ -113,8 +112,8 @@ const api::FolderItem& PremiumizeModel::itemAt(int row) const
 
 const api::FolderItem* PremiumizeModel::itemAtViewRow(int viewRow) const
 {
-    if (showUpEntry_ && viewRow == 0) return nullptr;
-    const int src = viewRow - (showUpEntry_ ? 1 : 0);
+    if (showUpEntry() && viewRow == 0) return nullptr;
+    const int src = viewRow - (showUpEntry() ? 1 : 0);
     if (src < 0 || src >= static_cast<int>(items_.size())) return nullptr;
     return &items_.at(static_cast<std::size_t>(src));
 }

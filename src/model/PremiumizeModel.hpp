@@ -37,14 +37,15 @@ public:
     const api::FolderItem& itemAt(int row) const;
     // Returns nullptr when viewRow is the up entry or out of bounds.
     const api::FolderItem* itemAtViewRow(int viewRow) const;
-    bool isUpEntry(int viewRow) const { return showUpEntry_ && viewRow == 0; }
+    bool isUpEntry(int viewRow) const { return showUpEntry() && viewRow == 0; }
 
     QString currentFolderId() const { return currentFolderId_; }
     QString parentFolderId()  const { return parentFolderId_; }
 
 private:
+    bool showUpEntry() const { return !currentFolderId_.isEmpty() || !parentFolderId_.isEmpty(); }
+
     std::vector<api::FolderItem> items_;
     QString                      currentFolderId_;
     QString                      parentFolderId_;
-    bool                         showUpEntry_ = false;
 };

@@ -89,6 +89,7 @@ void MainWindow::setupLayout()
     connect(transfersAct, &QAction::triggered, this, &MainWindow::on_showTransfers_clicked);
 
     localPane_->setLocalPath(AppConfig::instance().lastLocalPath());
+    cloudPane_->setDownloadPath(AppConfig::instance().lastLocalPath());
 
     statusBar()->showMessage("Connecting…");
 }
@@ -149,8 +150,9 @@ void MainWindow::connectSignals()
             });
 
     // Local pane signals
-    connect(localPane_, &FilePane::localPathChanged, this, [](const QString& path) {
+    connect(localPane_, &FilePane::localPathChanged, this, [this](const QString& path) {
         AppConfig::instance().setLastLocalPath(path);
+        cloudPane_->setDownloadPath(path);
     });
 
     // Cloud pane signals
@@ -255,13 +257,15 @@ void MainWindow::applyTheme(bool dark)
         QFile f(":/themes/dark.json");
         if (f.open(QIODevice::ReadOnly)) {
             const auto doc = QJsonDocument::fromJson(f.readAll());
-            if (auto t = oclero::qlementine::Theme::fromJsonDoc(doc))
+            if (auto t = oclero::qlementine::Theme::fromJsonDoc(doc)) {
                 qlStyle->setTheme(*t);
+                AppConfig::instance().setDarkModeEnabled(true);
+            }
         }
     } else {
         qlStyle->setTheme(oclero::qlementine::Theme{});
+        AppConfig::instance().setDarkModeEnabled(false);
     }
-    AppConfig::instance().setDarkModeEnabled(dark);
 }
 
 void MainWindow::closeEvent(QCloseEvent* event)
