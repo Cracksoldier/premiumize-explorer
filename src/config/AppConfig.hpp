@@ -19,6 +19,9 @@ public:
     QByteArray splitterSizes() const;
     void       setSplitterSizes(const QByteArray& sizes);
 
+    bool darkModeEnabled() const;
+    void setDarkModeEnabled(bool dark);
+
     bool isConfigured() const;
 
 private:

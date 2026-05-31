@@ -33,6 +33,7 @@ private:
     void connectSignals();
     void loadCloudRoot();
     void loadCloudFolder(const QString& folderId);
+    void applyTheme(bool dark);
 
     api::PremiumizeApi*     api_;
     TransferManager*        transferManager_;

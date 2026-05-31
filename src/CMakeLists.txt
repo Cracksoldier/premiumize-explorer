@@ -12,6 +12,8 @@ add_executable(premiumize-explorer
     model/PremiumizeModel.cpp
     model/UpEntryProxyModel.cpp
 
+    resources/resources.qrc
+
     ui/ApiKeyDialog.cpp
     ui/CreateFolderDialog.cpp
     ui/FilePane.cpp
