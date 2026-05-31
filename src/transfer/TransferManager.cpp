@@ -59,7 +59,8 @@ void TransferManager::enqueueDownload(const QString& remoteUrl,
 void TransferManager::cancelAll()
 {
     queue_.clear();
-    for (auto* obj : active_) {
+    const auto snapshot = active_;  // abort() emits finished() synchronously, which modifies active_
+    for (auto* obj : snapshot) {
         if (auto* up = qobject_cast<UploadJob*>(obj)) {
             up->cancel();
         } else if (auto* dl = qobject_cast<DownloadJob*>(obj)) {
