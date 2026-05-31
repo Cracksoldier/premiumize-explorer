@@ -9,10 +9,10 @@ A desktop file browser for [Premiumize.me](https://www.premiumize.me) cloud stor
 - **Two-pane layout** inspired by Total Commander — local filesystem on the left, Premiumize.me cloud on the right
 - **Drag & drop** to upload (local → cloud) or download (cloud → local)
 - **Non-blocking transfer progress window** showing speed, ETA, elapsed time, and bytes transferred per file
-- **Folder navigation** with breadcrumb path label and Up button
+- **Folder navigation** — breadcrumb path label; **↑ Up** always at the top of each list, hidden only at root
 - **Cloud operations**: create folder, delete file/folder, context menu
 - **API key stored** in `~/.config/premiumize-explorer/premiumize-explorer.ini` — entered once on first launch
-- **Qlementine** dark theme applied throughout
+- **Light / dark theme** — toggle via **View → Dark Mode**, preference persisted across restarts
 
 ## Requirements
 
@@ -56,13 +56,14 @@ To change the key later: **File → Change API Key…**
 | Action | How |
 |---|---|
 | Navigate into a folder | Double-click |
-| Go up | Click **↑ Up** or right-click → navigate |
+| Go up | Click **↑ Up** at the top of the list |
 | Upload files | Drag files from the local pane and drop them onto the cloud pane |
 | Download a file | Drag a file from the cloud pane and drop it onto the local pane, or right-click → **Download** |
 | Create a cloud folder | Click **+ Folder** in the cloud pane toolbar or right-click → **New Folder…** |
 | Delete a cloud item | Select it and click **Delete**, or right-click → **Delete** |
 | View transfer progress | Click **Transfers ▼** in the main toolbar |
 | Refresh the cloud view | Click **⟳** in the cloud pane toolbar or **⟳ Refresh** in the main toolbar |
+| Toggle dark mode | **View → Dark Mode** |
 
 ## Configuration file
 
