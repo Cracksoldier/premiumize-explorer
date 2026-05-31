@@ -45,12 +45,6 @@ void FilePane::setupLayout()
     auto* toolbar = new QToolBar(this);
     toolbar->setIconSize({16, 16});
 
-    pathLabel_ = new QLabel(this);
-    pathLabel_->setTextInteractionFlags(Qt::TextSelectableByMouse);
-    toolbar->addWidget(pathLabel_);
-    toolbar->addSeparator();
-
-
     if (type_ == PaneType::Cloud) {
         auto* refreshAct = toolbar->addAction("⟳");
         connect(refreshAct, &QAction::triggered, this, &FilePane::refreshRequested);
@@ -62,7 +56,17 @@ void FilePane::setupLayout()
         connect(deleteAct, &QAction::triggered, this, &FilePane::on_delete_clicked);
     }
 
+    if (type_ == PaneType::Local) {
+        auto* upAct = toolbar->addAction("↑ Up");
+        connect(upAct, &QAction::triggered, this, &FilePane::on_upButton_clicked);
+    }
+
     vl->addWidget(toolbar);
+
+    pathLabel_ = new QLabel(this);
+    pathLabel_->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    pathLabel_->setContentsMargins(4, 1, 4, 1);
+    vl->addWidget(pathLabel_);
 
     view_ = new QListView(this);
     view_->setSelectionMode(QAbstractItemView::ExtendedSelection);
