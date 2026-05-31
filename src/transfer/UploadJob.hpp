@@ -30,11 +30,11 @@ signals:
     void finished(bool success, QString errorMessage);
 
 private slots:
-    void on_uploadInfoReady(api::UploadInfo info);
     void on_uploadProgress(qint64 sent, qint64 total);
     void on_uploadFinished();
 
 private:
+    void startUpload(api::UploadInfo info);
     QString              localPath_;
     QString              targetFolderId_;
     api::PremiumizeApi*  api_;

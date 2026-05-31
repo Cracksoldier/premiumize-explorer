@@ -105,5 +105,6 @@ bool PremiumizeModel::canDropMimeData(const QMimeData* data, Qt::DropAction,
 
 const api::FolderItem& PremiumizeModel::itemAt(int row) const
 {
-    return items_[static_cast<std::size_t>(row)];
+    Q_ASSERT(row >= 0 && row < static_cast<int>(items_.size()));
+    return items_.at(static_cast<std::size_t>(row));
 }

@@ -22,8 +22,8 @@ void TransferManager::enqueueUpload(const QStringList& localPaths,
                         emit jobProgress(id, sent, total, elapsedMs, etaMs, bps);
                     });
             connect(job, &UploadJob::finished, this,
-                    [this, id](bool ok, const QString& err) {
-                        onJobFinished(id, ok, err);
+                    [this, job, id](bool ok, const QString& err) {
+                        onJobFinished(job, id, ok, err);
                     });
             job->start();
             return job;
@@ -47,8 +47,8 @@ void TransferManager::enqueueDownload(const QString& remoteUrl,
                     emit jobProgress(id, recv, total, elapsedMs, etaMs, bps);
                 });
         connect(job, &DownloadJob::finished, this,
-                [this, id](bool ok, const QString& err) {
-                    onJobFinished(id, ok, err);
+                [this, job, id](bool ok, const QString& err) {
+                    onJobFinished(job, id, ok, err);
                 });
         job->start();
         return job;
@@ -78,19 +78,11 @@ void TransferManager::dispatchNext()
     }
 }
 
-void TransferManager::onJobFinished(int jobId, bool success, const QString& error)
+void TransferManager::onJobFinished(QObject* job, int jobId, bool success, const QString& error)
 {
     emit jobFinished(jobId, success, error);
-    active_.erase(
-        std::remove_if(active_.begin(), active_.end(),
-                       [](QObject* o) { return o->property("_done").toBool(); }),
-        active_.end());
-    // Mark the sender as done
-    if (auto* sender = qobject_cast<QObject*>(this->sender())) {
-        sender->setProperty("_done", true);
-        active_.erase(std::remove(active_.begin(), active_.end(), sender), active_.end());
-        sender->deleteLater();
-    }
+    active_.erase(std::remove(active_.begin(), active_.end(), job), active_.end());
+    job->deleteLater();
     dispatchNext();
     if (active_.empty() && queue_.empty()) {
         emit allFinished();

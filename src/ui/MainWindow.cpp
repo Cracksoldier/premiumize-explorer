@@ -168,9 +168,9 @@ void MainWindow::connectSignals()
                 progressWindow_->raise();
             });
 
-    connect(transferManager_, &TransferManager::allFinished, this, [this]() {
-        loadCloudFolder(cloudPane_->currentCloudId());
-    });
+    // Intentionally not auto-refreshing on allFinished: the transfer destination
+    // may differ from the folder currently displayed, which would cause an
+    // unwanted navigation jump. The user can press Refresh manually.
 }
 
 void MainWindow::loadCloudRoot()

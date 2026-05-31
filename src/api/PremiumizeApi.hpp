@@ -27,8 +27,9 @@ public:
     void requestUploadInfo(const QString& targetFolderId = {});
     void fetchAccountInfo();
 
-    // Returns reply caller must connect to and delete when done
+    // Return raw replies — caller connects and deletes when done
     QNetworkReply* startDownload(const QString& url);
+    QNetworkReply* fetchUploadInfo(const QString& targetFolderId = {});
 
 signals:
     void folderListingReady(api::FolderListing listing);

@@ -5,6 +5,8 @@
 #include <QFileInfo>
 #include <QHttpMultiPart>
 #include <QHttpPart>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QMimeDatabase>
 #include <QNetworkReply>
 #include <QNetworkRequest>
@@ -23,12 +25,34 @@ void UploadJob::start()
 {
     QFileInfo fi(localPath_);
     totalBytes_ = fi.size();
-
-    connect(api_, &api::PremiumizeApi::uploadInfoReady,
-            this, &UploadJob::on_uploadInfoReady,
-            Qt::SingleShotConnection);
-    api_->requestUploadInfo(targetFolderId_);
     timer_.start();
+
+    auto* infoReply = api_->fetchUploadInfo(targetFolderId_);
+    connect(infoReply, &QNetworkReply::finished, this, [this, infoReply]() {
+        infoReply->deleteLater();
+        if (infoReply->error() != QNetworkReply::NoError) {
+            emit finished(false, infoReply->errorString());
+            return;
+        }
+        const auto doc = QJsonDocument::fromJson(infoReply->readAll());
+        if (!doc.isObject()) {
+            emit finished(false, QStringLiteral("Invalid upload-info response"));
+            return;
+        }
+        const auto obj = doc.object();
+        if (obj.value("status").toString() != QStringLiteral("success")) {
+            emit finished(false, obj.value("message").toString("Upload info request failed"));
+            return;
+        }
+        api::UploadInfo info;
+        info.token = obj.value("token").toString();
+        info.url   = obj.value("url").toString();
+        if (info.token.isEmpty() || info.url.isEmpty()) {
+            emit finished(false, QStringLiteral("Empty token or URL in upload-info response"));
+            return;
+        }
+        startUpload(std::move(info));
+    });
 }
 
 void UploadJob::cancel()
@@ -43,7 +67,7 @@ QString UploadJob::fileName() const
     return QFileInfo(localPath_).fileName();
 }
 
-void UploadJob::on_uploadInfoReady(api::UploadInfo info)
+void UploadJob::startUpload(api::UploadInfo info)
 {
     auto* file = new QFile(localPath_);
     if (!file->open(QIODevice::ReadOnly)) {

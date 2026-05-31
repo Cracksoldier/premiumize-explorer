@@ -34,7 +34,7 @@ signals:
 
 private:
     void dispatchNext();
-    void onJobFinished(int jobId, bool success, const QString& error);
+    void onJobFinished(QObject* job, int jobId, bool success, const QString& error);
 
     api::PremiumizeApi*                              api_;
     std::deque<std::function<QObject*(int jobId)>>  queue_;

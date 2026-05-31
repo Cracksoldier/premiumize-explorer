@@ -131,13 +131,19 @@ void PremiumizeApi::deleteItem(const QString& id, bool isFolder)
     req.setHeader(QNetworkRequest::ContentTypeHeader,
                   "application/x-www-form-urlencoded");
     auto* reply = nam_.post(req, query.toString(QUrl::FullyEncoded).toUtf8());
-    handleJsonReply(reply, [this](const QJsonObject&) {
-        emit deleteFinished(true, {});
-    });
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        reply->deleteLater();
         if (reply->error() != QNetworkReply::NoError) {
             emit deleteFinished(false, reply->errorString());
+            return;
         }
+        const auto doc = QJsonDocument::fromJson(reply->readAll());
+        const auto obj = doc.isObject() ? doc.object() : QJsonObject{};
+        if (obj.value("status").toString() != QStringLiteral("success")) {
+            emit deleteFinished(false, obj.value("message").toString("Delete failed"));
+            return;
+        }
+        emit deleteFinished(true, {});
     });
 }
 
@@ -196,6 +202,17 @@ void PremiumizeApi::fetchAccountInfo()
 QNetworkReply* PremiumizeApi::startDownload(const QString& url)
 {
     return nam_.get(authorizedRequest(QUrl(url)));
+}
+
+QNetworkReply* PremiumizeApi::fetchUploadInfo(const QString& targetFolderId)
+{
+    QUrl url(QStringLiteral("%1/folder/uploadinfo").arg(kBaseUrl));
+    if (!targetFolderId.isEmpty()) {
+        QUrlQuery query;
+        query.addQueryItem("id", targetFolderId);
+        url.setQuery(query);
+    }
+    return nam_.get(authorizedRequest(url));
 }
 
 } // namespace api
