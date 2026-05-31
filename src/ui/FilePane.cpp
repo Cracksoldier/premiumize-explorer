@@ -130,6 +130,7 @@ void FilePane::on_itemActivated(const QModelIndex& index)
             setLocalPath(path);
         }
     } else {
+        if (index.row() < 0 || index.row() >= cloudModel_->rowCount()) return;
         const auto& item = cloudModel_->itemAt(index.row());
         if (item.isFolder()) {
             emit navigateCloudRequested(item.id);
@@ -165,6 +166,7 @@ void FilePane::on_delete_clicked()
 
     if (type_ == PaneType::Cloud) {
         for (const auto& idx : selected) {
+            if (idx.row() < 0 || idx.row() >= cloudModel_->rowCount()) continue;
             const auto& item = cloudModel_->itemAt(idx.row());
             emit deleteRequested(item.id, item.isFolder());
         }
@@ -177,21 +179,28 @@ void FilePane::on_contextMenu(const QPoint& pos)
     QMenu menu(this);
 
     if (type_ == PaneType::Cloud) {
-        if (idx.isValid()) {
+        if (idx.isValid() && idx.row() >= 0 && idx.row() < cloudModel_->rowCount()) {
             const auto& item = cloudModel_->itemAt(idx.row());
-            if (!item.isFolder()) {
+            const QString itemId = item.id;
+            const bool itemIsFolder = item.isFolder();
+            if (!itemIsFolder) {
                 auto* dlAct = menu.addAction("Download");
-                connect(dlAct, &QAction::triggered, this, [this, item]() {
-                    if (item.link) {
-                        const QString dest = currentLocalPath_ + "/" + item.name;
-                        emit downloadRequested(*item.link, dest,
-                                               item.size.value_or(-1), item.name);
+                connect(dlAct, &QAction::triggered, this, [this, itemId]() {
+                    // Re-fetch from current model state so we use a fresh link URL
+                    for (int r = 0; r < cloudModel_->rowCount(); ++r) {
+                        const auto& f = cloudModel_->itemAt(r);
+                        if (f.id == itemId && f.link) {
+                            emit downloadRequested(*f.link,
+                                                   currentLocalPath_ + "/" + f.name,
+                                                   f.size.value_or(-1), f.name);
+                            return;
+                        }
                     }
                 });
             }
             auto* delAct = menu.addAction("Delete");
-            connect(delAct, &QAction::triggered, this, [this, item]() {
-                emit deleteRequested(item.id, item.isFolder());
+            connect(delAct, &QAction::triggered, this, [this, itemId, itemIsFolder]() {
+                emit deleteRequested(itemId, itemIsFolder);
             });
             menu.addSeparator();
         }

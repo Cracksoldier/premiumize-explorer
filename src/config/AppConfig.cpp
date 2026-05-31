@@ -35,6 +35,7 @@ QString AppConfig::lastLocalPath() const
 void AppConfig::setLastLocalPath(const QString& path)
 {
     settings_.setValue("ui/last_local_path", path);
+    settings_.sync();
 }
 
 QByteArray AppConfig::windowGeometry() const
@@ -45,6 +46,7 @@ QByteArray AppConfig::windowGeometry() const
 void AppConfig::setWindowGeometry(const QByteArray& geom)
 {
     settings_.setValue("ui/window_geometry", geom);
+    settings_.sync();
 }
 
 QByteArray AppConfig::splitterSizes() const
@@ -55,6 +57,7 @@ QByteArray AppConfig::splitterSizes() const
 void AppConfig::setSplitterSizes(const QByteArray& sizes)
 {
     settings_.setValue("ui/splitter_sizes", sizes);
+    settings_.sync();
 }
 
 bool AppConfig::isConfigured() const
