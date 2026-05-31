@@ -8,6 +8,7 @@ class QLabel;
 class QToolBar;
 class QFileSystemModel;
 class PremiumizeModel;
+class UpEntryProxyModel;
 
 class FilePane : public QWidget
 {
@@ -60,8 +61,9 @@ private:
     QListView*       view_;
     QLabel*          pathLabel_;
 
-    QFileSystemModel* localModel_  = nullptr;
-    PremiumizeModel*  cloudModel_  = nullptr;
+    QFileSystemModel*  localModel_  = nullptr;
+    UpEntryProxyModel* upProxy_     = nullptr;
+    PremiumizeModel*   cloudModel_  = nullptr;
 
     QString currentLocalPath_;
     QString currentCloudId_;

@@ -10,6 +10,7 @@ add_executable(premiumize-explorer
     config/AppConfig.cpp
 
     model/PremiumizeModel.cpp
+    model/UpEntryProxyModel.cpp
 
     ui/ApiKeyDialog.cpp
     ui/CreateFolderDialog.cpp
