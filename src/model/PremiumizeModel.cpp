@@ -1,5 +1,6 @@
 #include "PremiumizeModel.hpp"
 
+#include <QFileIconProvider>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -51,6 +52,11 @@ QVariant PremiumizeModel::data(const QModelIndex& index, int role) const
         case CreatedAtRole:return item.createdAt;
         case LinkRole:     return item.link.value_or(QString{});
         case MimeTypeRole: return item.mimeType.value_or(QString{});
+        case Qt::DecorationRole: {
+            static QFileIconProvider icons;
+            return icons.icon(item.isFolder() ? QFileIconProvider::Folder
+                                              : QFileIconProvider::File);
+        }
         default:           return {};
     }
 }
