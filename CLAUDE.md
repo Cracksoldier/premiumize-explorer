@@ -46,8 +46,9 @@ TransferProgressWindow  (non-modal Qt::Tool window)
 | `api::PremiumizeApi` | `src/api/PremiumizeApi.hpp` | All HTTP calls; fire-and-emit (never blocking). Auth via `Authorization: Bearer` header. |
 | `api::ApiTypes` | `src/api/ApiTypes.hpp` | Plain data structs: `FolderItem`, `FolderListing`, `UploadInfo`, `AccountInfo`. |
 | `AppConfig` | `src/config/AppConfig.hpp` | Singleton QSettings facade. Writes to `~/.config/premiumize-explorer/premiumize-explorer.ini`. |
-| `PremiumizeModel` | `src/model/PremiumizeModel.hpp` | `QAbstractListModel` for the cloud pane (flat list, one folder at a time). Emits `application/x-premiumize-items` MIME for drag-and-drop. |
-| `FilePane` | `src/ui/FilePane.hpp` | Reusable widget used for both panes. `PaneType::Local` drives `QFileSystemModel`; `PaneType::Cloud` drives `PremiumizeModel`. Handles all drag/drop events and emits typed signals upward. |
+| `PremiumizeModel` | `src/model/PremiumizeModel.hpp` | `QAbstractListModel` for the cloud pane (flat list, one folder at a time). Injects a virtual "↑ Up" row at position 0 when not at root; `showUpEntry()` (private) derives visibility from `currentFolderId_` / `parentFolderId_` — no separate stored flag. Use `isUpEntry(row)` and `itemAtViewRow(row)` (returns nullptr for the up row or OOB) at every call site. Emits `application/x-premiumize-items` MIME for drag-and-drop. |
+| `UpEntryProxyModel` | `src/model/UpEntryProxyModel.hpp` | `QIdentityProxyModel` wrapping `QFileSystemModel` for the local pane. Inserts a virtual "↑ Up" row at position 0 when not at root. A heap-allocated `QObject* sentinel_` is used as `internalPointer` to identify the virtual row. `viewRoot_` is a plain `QModelIndex` (not `QPersistentModelIndex`) — `endResetModel()` invalidates persistent indices. Not used for the cloud pane. |
+| `FilePane` | `src/ui/FilePane.hpp` | Reusable widget used for both panes. `PaneType::Local` wraps `QFileSystemModel` via `UpEntryProxyModel`; `PaneType::Cloud` drives `PremiumizeModel`. The cloud pane's download destination is kept in sync with the local pane via `setDownloadPath()`, called by `MainWindow` on every `localPathChanged`. Handles all drag/drop events and emits typed signals upward. |
 | `TransferManager` | `src/transfer/TransferManager.hpp` | Job queue, max 2 concurrent. Job pointers are passed explicitly to `onJobFinished` — never use `QObject::sender()` here, it is unreliable when called from a regular member function. |
 | `UploadJob` | `src/transfer/UploadJob.hpp` | Two-step upload: fetches token/URL via `PremiumizeApi::fetchUploadInfo()` (private reply), then POSTs `QHttpMultiPart`. Uses its own `QNetworkAccessManager`. |
 | `DownloadJob` | `src/transfer/DownloadJob.hpp` | Streams `QNetworkReply` bytes directly to a `QFile`. Reply comes from `PremiumizeApi::startDownload`. |
@@ -79,9 +80,24 @@ TransferProgressWindow  (non-modal Qt::Tool window)
 
 `PremiumizeApi::deleteItem` uses a **single** `QNetworkReply::finished` handler that emits either `deleteFinished(true)` on success or `deleteFinished(false, error)` on failure. It does **not** call `handleJsonReply` (which would also emit `networkError`, causing a double response). Do not add a second `connect` to a reply that already has one — both handlers fire on the same signal emission.
 
+### "↑ Up" virtual row
+
+Both panes show a "↑ Up" entry at row 0 whenever not at root. Each pane handles it differently:
+
+- **Cloud**: `PremiumizeModel` inserts the row internally. `showUpEntry()` (private method) derives visibility from `currentFolderId_` and `parentFolderId_` so it is always in sync with the folder state — there is no separate flag that can drift.
+- **Local**: `UpEntryProxyModel` inserts the row. `viewRoot_` stores the proxy root index as a plain `QModelIndex`, not `QPersistentModelIndex` — `endResetModel()` would immediately invalidate a persistent index, breaking the proxy.
+
+Always call `isUpEntry` before accessing item data. Never store row offsets across model resets.
+
+### cancelAll() iterator safety
+
+`QNetworkReply::abort()` emits `finished` synchronously (direct connection, same thread), which chains through `on_finished()` → `onJobFinished()` → `active_.erase()`. `cancelAll()` therefore iterates a **snapshot copy** of `active_` so the original can be modified freely during cancellation. Preserve this pattern if new cancellation paths are added.
+
 ### Theme
 
 Qlementine v1.4.2 is fetched via CMake `FetchContent` on first configure. Applied in `main.cpp` via `QApplication::setStyle(new oclero::qlementine::QlementineStyle(&app))`. Include path: `<oclero/qlementine/style/QlementineStyle.hpp>`.
+
+Dark mode is toggled via **View → Dark Mode** and persisted in `AppConfig` (`ui/dark_mode`). `MainWindow::applyTheme(bool)` loads `:/themes/dark.json` (bundled in `src/resources/resources.qrc`) and calls `setDarkModeEnabled` only if the theme was applied successfully — not unconditionally.
 
 ## LSP / clangd
 
