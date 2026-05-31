@@ -4,6 +4,7 @@
 
 #include <QAction>
 #include <QDragEnterEvent>
+#include <QKeyEvent>
 #include <QFileInfo>
 #include <QFileSystemModel>
 #include <QHBoxLayout>
@@ -213,6 +214,20 @@ void FilePane::on_contextMenu(const QPoint& pos)
     if (!menu.isEmpty()) {
         menu.exec(view_->viewport()->mapToGlobal(pos));
     }
+}
+
+// --- Keyboard ---
+
+void FilePane::keyPressEvent(QKeyEvent* event)
+{
+    if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) {
+        const auto idx = view_->currentIndex();
+        if (idx.isValid()) {
+            on_itemActivated(idx);
+            return;
+        }
+    }
+    QWidget::keyPressEvent(event);
 }
 
 // --- Drag & Drop ---

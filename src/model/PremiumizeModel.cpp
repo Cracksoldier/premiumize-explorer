@@ -10,7 +10,11 @@ static constexpr const char* kCloudMime = "application/x-premiumize-items";
 
 PremiumizeModel::PremiumizeModel(QObject* parent)
     : QAbstractListModel(parent)
-{}
+{
+    QFileIconProvider p;
+    folderIcon_ = p.icon(QFileIconProvider::Folder);
+    fileIcon_   = p.icon(QFileIconProvider::File);
+}
 
 void PremiumizeModel::populate(const api::FolderListing& listing)
 {
@@ -52,11 +56,8 @@ QVariant PremiumizeModel::data(const QModelIndex& index, int role) const
         case CreatedAtRole:return item.createdAt;
         case LinkRole:     return item.link.value_or(QString{});
         case MimeTypeRole: return item.mimeType.value_or(QString{});
-        case Qt::DecorationRole: {
-            static QFileIconProvider icons;
-            return icons.icon(item.isFolder() ? QFileIconProvider::Folder
-                                              : QFileIconProvider::File);
-        }
+        case Qt::DecorationRole:
+            return item.isFolder() ? folderIcon_ : fileIcon_;
         default:           return {};
     }
 }

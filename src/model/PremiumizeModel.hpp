@@ -2,6 +2,7 @@
 #include "api/ApiTypes.hpp"
 
 #include <QAbstractListModel>
+#include <QIcon>
 #include <vector>
 
 class PremiumizeModel : public QAbstractListModel
@@ -48,4 +49,6 @@ private:
     std::vector<api::FolderItem> items_;
     QString                      currentFolderId_;
     QString                      parentFolderId_;
+    QIcon                        folderIcon_;
+    QIcon                        fileIcon_;
 };
