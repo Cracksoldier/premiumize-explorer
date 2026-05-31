@@ -1,5 +1,6 @@
 #include "FilePane.hpp"
 #include "model/PremiumizeModel.hpp"
+#include "model/UpEntryProxyModel.hpp"
 
 #include <QAction>
 #include <QDragEnterEvent>
@@ -48,8 +49,6 @@ void FilePane::setupLayout()
     toolbar->addWidget(pathLabel_);
     toolbar->addSeparator();
 
-    auto* upAct = toolbar->addAction("↑ Up");
-    connect(upAct, &QAction::triggered, this, &FilePane::on_upButton_clicked);
 
     if (type_ == PaneType::Cloud) {
         auto* refreshAct = toolbar->addAction("⟳");
@@ -82,7 +81,9 @@ void FilePane::setupLocalModel()
     localModel_ = new QFileSystemModel(this);
     localModel_->setRootPath({});
     localModel_->setFilter(QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden);
-    view_->setModel(localModel_);
+    upProxy_ = new UpEntryProxyModel(this);
+    upProxy_->setSourceModel(localModel_);
+    view_->setModel(upProxy_);
 }
 
 void FilePane::setupCloudModel()
@@ -95,8 +96,9 @@ void FilePane::setLocalPath(const QString& path)
 {
     if (type_ != PaneType::Local || !localModel_) return;
     currentLocalPath_ = path;
-    const auto idx = localModel_->setRootPath(path);
-    view_->setRootIndex(idx);
+    const auto srcIdx   = localModel_->setRootPath(path);
+    const auto proxyIdx = upProxy_->setSourceRoot(srcIdx, !QDir(path).isRoot());
+    view_->setRootIndex(proxyIdx);
     updatePathLabel();
     emit localPathChanged(path);
 }
@@ -125,16 +127,14 @@ void FilePane::updatePathLabel()
 void FilePane::on_itemActivated(const QModelIndex& index)
 {
     if (type_ == PaneType::Local) {
-        const QString path = localModel_->filePath(index);
-        if (localModel_->isDir(index)) {
-            setLocalPath(path);
-        }
+        if (upProxy_->isUpEntry(index)) { on_upButton_clicked(); return; }
+        const QModelIndex srcIdx = upProxy_->mapToSource(index);
+        const QString path = localModel_->filePath(srcIdx);
+        if (localModel_->isDir(srcIdx)) setLocalPath(path);
     } else {
-        if (index.row() < 0 || index.row() >= cloudModel_->rowCount()) return;
-        const auto& item = cloudModel_->itemAt(index.row());
-        if (item.isFolder()) {
-            emit navigateCloudRequested(item.id);
-        }
+        if (cloudModel_->isUpEntry(index.row())) { on_upButton_clicked(); return; }
+        const auto* item = cloudModel_->itemAtViewRow(index.row());
+        if (item && item->isFolder()) emit navigateCloudRequested(item->id);
     }
 }
 
@@ -166,9 +166,9 @@ void FilePane::on_delete_clicked()
 
     if (type_ == PaneType::Cloud) {
         for (const auto& idx : selected) {
-            if (idx.row() < 0 || idx.row() >= cloudModel_->rowCount()) continue;
-            const auto& item = cloudModel_->itemAt(idx.row());
-            emit deleteRequested(item.id, item.isFolder());
+            const auto* item = cloudModel_->itemAtViewRow(idx.row());
+            if (!item) continue;
+            emit deleteRequested(item->id, item->isFolder());
         }
     }
 }
@@ -179,30 +179,31 @@ void FilePane::on_contextMenu(const QPoint& pos)
     QMenu menu(this);
 
     if (type_ == PaneType::Cloud) {
-        if (idx.isValid() && idx.row() >= 0 && idx.row() < cloudModel_->rowCount()) {
-            const auto& item = cloudModel_->itemAt(idx.row());
-            const QString itemId = item.id;
-            const bool itemIsFolder = item.isFolder();
-            if (!itemIsFolder) {
-                auto* dlAct = menu.addAction("Download");
-                connect(dlAct, &QAction::triggered, this, [this, itemId]() {
-                    // Re-fetch from current model state so we use a fresh link URL
-                    for (int r = 0; r < cloudModel_->rowCount(); ++r) {
-                        const auto& f = cloudModel_->itemAt(r);
-                        if (f.id == itemId && f.link) {
-                            emit downloadRequested(*f.link,
-                                                   currentLocalPath_ + "/" + f.name,
-                                                   f.size.value_or(-1), f.name);
-                            return;
+        if (idx.isValid()) {
+            const auto* item = cloudModel_->itemAtViewRow(idx.row());
+            if (item) {
+                const QString itemId      = item->id;
+                const bool    itemIsFolder = item->isFolder();
+                if (!itemIsFolder) {
+                    auto* dlAct = menu.addAction("Download");
+                    connect(dlAct, &QAction::triggered, this, [this, itemId]() {
+                        for (int r = 0; r < cloudModel_->rowCount(); ++r) {
+                            const auto* f = cloudModel_->itemAtViewRow(r);
+                            if (f && f->id == itemId && f->link) {
+                                emit downloadRequested(*f->link,
+                                                       currentLocalPath_ + "/" + f->name,
+                                                       f->size.value_or(-1), f->name);
+                                return;
+                            }
                         }
-                    }
+                    });
+                }
+                auto* delAct = menu.addAction("Delete");
+                connect(delAct, &QAction::triggered, this, [this, itemId, itemIsFolder]() {
+                    emit deleteRequested(itemId, itemIsFolder);
                 });
+                menu.addSeparator();
             }
-            auto* delAct = menu.addAction("Delete");
-            connect(delAct, &QAction::triggered, this, [this, itemId, itemIsFolder]() {
-                emit deleteRequested(itemId, itemIsFolder);
-            });
-            menu.addSeparator();
         }
         auto* newFolderAct = menu.addAction("New Folder…");
         connect(newFolderAct, &QAction::triggered, this,
