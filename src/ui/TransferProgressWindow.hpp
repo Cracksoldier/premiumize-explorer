@@ -34,6 +34,7 @@ private:
         QLabel*       statsLabel;
         QLabel*       elapsedLabel;
         QWidget*      container;
+        qint64        totalBytes;
     };
 
     JobRow* findRow(int jobId);

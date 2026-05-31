@@ -18,11 +18,15 @@ TransferProgressWindow::TransferProgressWindow(TransferManager* manager, QWidget
     resize(520, 300);
 
     auto* outerLayout = new QVBoxLayout(this);
+    outerLayout->setContentsMargins(8, 8, 8, 8);
 
     auto* scrollArea = new QScrollArea(this);
     scrollArea->setWidgetResizable(true);
+    scrollArea->setFrameShape(QFrame::StyledPanel);
     auto* scrollContent = new QWidget;
     jobLayout_ = new QVBoxLayout(scrollContent);
+    jobLayout_->setContentsMargins(4, 4, 4, 4);
+    jobLayout_->setSpacing(0);
     jobLayout_->addStretch();
     scrollArea->setWidget(scrollContent);
     outerLayout->addWidget(scrollArea);
@@ -42,9 +46,16 @@ void TransferProgressWindow::on_jobStarted(int id, const QString& name, qint64 t
     show();
     raise();
 
-    auto* container  = new QFrame;
-    container->setFrameShape(QFrame::StyledPanel);
+    if (!rows_.empty()) {
+        auto* sep = new QFrame;
+        sep->setFrameShape(QFrame::HLine);
+        sep->setFrameShadow(QFrame::Sunken);
+        jobLayout_->insertWidget(jobLayout_->count() - 1, sep);
+    }
+
+    auto* container = new QWidget;
     auto* vl = new QVBoxLayout(container);
+    vl->setContentsMargins(8, 6, 8, 6);
 
     auto* nameLabel    = new QLabel(name);
     nameLabel->setWordWrap(false);
@@ -64,7 +75,7 @@ void TransferProgressWindow::on_jobStarted(int id, const QString& name, qint64 t
     // Insert before the stretch at the end
     jobLayout_->insertWidget(jobLayout_->count() - 1, container);
 
-    rows_.push_back({id, nameLabel, progressBar, statsLabel, elapsedLabel, container});
+    rows_.push_back({id, nameLabel, progressBar, statsLabel, elapsedLabel, container, total});
 }
 
 void TransferProgressWindow::on_jobProgress(int id, qint64 bytes, qint64 total,
@@ -96,7 +107,10 @@ void TransferProgressWindow::on_jobFinished(int id, bool success, const QString&
 
     if (success) {
         row->progressBar->setValue(row->progressBar->maximum());
-        row->statsLabel->setText("Done");
+        const QString sizeStr = row->totalBytes > 0 ? formatBytes(row->totalBytes) : QString{};
+        row->statsLabel->setText(sizeStr.isEmpty()
+                                     ? QStringLiteral("Done")
+                                     : QStringLiteral("Done · %1").arg(sizeStr));
     } else {
         row->statsLabel->setText(QStringLiteral("Failed: %1").arg(error));
     }
