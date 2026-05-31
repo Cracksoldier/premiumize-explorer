@@ -70,7 +70,7 @@ void FilePane::setupLayout()
     view_->setDropIndicatorShown(true);
     view_->setDragDropMode(QAbstractItemView::DragDrop);
     view_->setContextMenuPolicy(Qt::CustomContextMenu);
-    connect(view_, &QListView::activated,             this, &FilePane::on_itemActivated);
+    connect(view_, &QListView::doubleClicked,          this, &FilePane::on_itemActivated);
     connect(view_, &QListView::customContextMenuRequested, this, &FilePane::on_contextMenu);
 
     vl->addWidget(view_);
