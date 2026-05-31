@@ -60,6 +60,17 @@ void AppConfig::setSplitterSizes(const QByteArray& sizes)
     settings_.sync();
 }
 
+bool AppConfig::darkModeEnabled() const
+{
+    return settings_.value("ui/dark_mode", false).toBool();
+}
+
+void AppConfig::setDarkModeEnabled(bool dark)
+{
+    settings_.setValue("ui/dark_mode", dark);
+    settings_.sync();
+}
+
 bool AppConfig::isConfigured() const
 {
     return !apiKey().isEmpty();

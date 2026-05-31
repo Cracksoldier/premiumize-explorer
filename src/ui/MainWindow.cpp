@@ -8,11 +8,16 @@
 #include "model/PremiumizeModel.hpp"
 #include "transfer/TransferManager.hpp"
 
+#include <oclero/qlementine/style/QlementineStyle.hpp>
+
 #include <QAction>
+#include <QApplication>
 #include <QCloseEvent>
 #include <QDir>
+#include <QFile>
 #include <QFileDialog>
 #include <QInputDialog>
+#include <QJsonDocument>
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QSplitter>
@@ -23,6 +28,8 @@
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
 {
+    applyTheme(AppConfig::instance().darkModeEnabled());
+
     setWindowTitle("Premiumize Explorer");
     resize(1100, 650);
 
@@ -109,6 +116,15 @@ void MainWindow::setupMenuBar()
     auto* viewMenu = menuBar()->addMenu("&View");
     auto* showTransfersAct = viewMenu->addAction("&Transfers");
     connect(showTransfersAct, &QAction::triggered, this, &MainWindow::on_showTransfers_clicked);
+
+    viewMenu->addSeparator();
+
+    auto* darkAct = viewMenu->addAction("Dark Mode");
+    darkAct->setCheckable(true);
+    darkAct->setChecked(AppConfig::instance().darkModeEnabled());
+    connect(darkAct, &QAction::toggled, this, [this](bool on) {
+        applyTheme(on);
+    });
 }
 
 void MainWindow::connectSignals()
@@ -229,6 +245,23 @@ void MainWindow::on_accountInfoReady(const api::AccountInfo& info)
     const auto total = info.spaceTotal / (1LL << 30);
     statusBar()->showMessage(
         QStringLiteral("Cloud: %1 GB used / %2 GB total").arg(used).arg(total));
+}
+
+void MainWindow::applyTheme(bool dark)
+{
+    auto* qlStyle = qobject_cast<oclero::qlementine::QlementineStyle*>(QApplication::style());
+    if (!qlStyle) return;
+    if (dark) {
+        QFile f(":/themes/dark.json");
+        if (f.open(QIODevice::ReadOnly)) {
+            const auto doc = QJsonDocument::fromJson(f.readAll());
+            if (auto t = oclero::qlementine::Theme::fromJsonDoc(doc))
+                qlStyle->setTheme(*t);
+        }
+    } else {
+        qlStyle->setTheme(oclero::qlementine::Theme{});
+    }
+    AppConfig::instance().setDarkModeEnabled(dark);
 }
 
 void MainWindow::closeEvent(QCloseEvent* event)
