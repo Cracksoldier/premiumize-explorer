@@ -30,6 +30,7 @@ signals:
     void jobProgress(int jobId, qint64 bytes, qint64 total,
                      qint64 elapsedMs, qint64 etaMs, double bytesPerSec);
     void jobFinished(int jobId, bool success, QString error);
+    void uploadFinished(QString targetFolderId, bool success, QString error);
     void allFinished();
 
 private:

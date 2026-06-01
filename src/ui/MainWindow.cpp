@@ -2,6 +2,7 @@
 #include "ApiKeyDialog.hpp"
 #include "CreateFolderDialog.hpp"
 #include "FilePane.hpp"
+#include "LogWindow.hpp"
 #include "TransferProgressWindow.hpp"
 #include "api/PremiumizeApi.hpp"
 #include "config/AppConfig.hpp"
@@ -22,7 +23,6 @@
 #include <QMessageBox>
 #include <QSplitter>
 #include <QStatusBar>
-#include <QToolBar>
 #include <QVBoxLayout>
 
 MainWindow::MainWindow(QWidget* parent)
@@ -38,6 +38,7 @@ MainWindow::MainWindow(QWidget* parent)
 
     transferManager_ = new TransferManager(api_, this);
     progressWindow_  = new TransferProgressWindow(transferManager_, this);
+    logWindow_       = new LogWindow(this);
 
     setupLayout();
     setupMenuBar();
@@ -55,7 +56,7 @@ void MainWindow::setupLayout()
 {
     auto* central   = new QWidget(this);
     auto* vl        = new QVBoxLayout(central);
-    vl->setContentsMargins(4, 4, 4, 4);
+    vl->setContentsMargins(0, 0, 0, 0);
     vl->setSpacing(0);
 
     auto* splitter  = new QSplitter(Qt::Horizontal, central);
@@ -76,17 +77,6 @@ void MainWindow::setupLayout()
 
     vl->addWidget(splitter);
     setCentralWidget(central);
-
-    auto* tb = addToolBar("Main");
-    tb->setMovable(false);
-
-    auto* refreshAct = tb->addAction("⟳ Refresh");
-    connect(refreshAct, &QAction::triggered, this, [this]() { loadCloudRoot(); });
-
-    tb->addSeparator();
-
-    auto* transfersAct = tb->addAction("Transfers ▼");
-    connect(transfersAct, &QAction::triggered, this, &MainWindow::on_showTransfers_clicked);
 
     localPane_->setLocalPath(AppConfig::instance().lastLocalPath());
     cloudPane_->setDownloadPath(AppConfig::instance().lastLocalPath());
@@ -126,6 +116,11 @@ void MainWindow::setupMenuBar()
     connect(darkAct, &QAction::toggled, this, [this](bool on) {
         applyTheme(on);
     });
+
+    viewMenu->addSeparator();
+
+    auto* showApiLogAct = viewMenu->addAction("API &Log");
+    connect(showApiLogAct, &QAction::triggered, this, &MainWindow::on_showApiLog_clicked);
 }
 
 void MainWindow::connectSignals()
@@ -148,6 +143,8 @@ void MainWindow::connectSignals()
                 }
                 loadCloudFolder(cloudPane_->currentCloudId());
             });
+    connect(api_, &api::PremiumizeApi::requestLogged,
+            logWindow_, &LogWindow::appendEntry);
 
     // Local pane signals
     connect(localPane_, &FilePane::localPathChanged, this, [this](const QString& path) {
@@ -186,9 +183,12 @@ void MainWindow::connectSignals()
                 progressWindow_->raise();
             });
 
-    // Intentionally not auto-refreshing on allFinished: the transfer destination
-    // may differ from the folder currently displayed, which would cause an
-    // unwanted navigation jump. The user can press Refresh manually.
+    connect(transferManager_, &TransferManager::uploadFinished,
+            this, [this](const QString& folderId, bool success, const QString&) {
+                if (success && folderId == cloudPane_->currentCloudId()) {
+                    loadCloudFolder(folderId);
+                }
+            });
 }
 
 void MainWindow::loadCloudRoot()
@@ -206,6 +206,7 @@ void MainWindow::loadCloudFolder(const QString& folderId)
 void MainWindow::on_folderListingReady(const api::FolderListing& listing)
 {
     cloudPane_->setCloudListing(listing.folderId, listing.name, listing.parentId);
+    localPane_->setUploadTargetFolderId(listing.folderId);
     cloudPane_->cloudModel()->populate(listing);
     statusBar()->showMessage(
         QStringLiteral("%1 item(s)").arg(listing.content.size()));
@@ -239,6 +240,13 @@ void MainWindow::on_showTransfers_clicked()
     progressWindow_->show();
     progressWindow_->raise();
     progressWindow_->activateWindow();
+}
+
+void MainWindow::on_showApiLog_clicked()
+{
+    logWindow_->show();
+    logWindow_->raise();
+    logWindow_->activateWindow();
 }
 
 void MainWindow::on_accountInfoReady(const api::AccountInfo& info)

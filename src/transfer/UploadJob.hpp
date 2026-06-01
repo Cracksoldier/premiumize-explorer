@@ -22,6 +22,7 @@ public:
     void cancel();
 
     QString fileName()           const;
+    QString targetFolderId()     const { return targetFolderId_; }
     qint64  totalBytes()         const { return totalBytes_; }
     qint64  bytesTransferred()   const { return bytesTransferred_; }
 
@@ -41,6 +42,7 @@ private:
     QNetworkAccessManager uploadNam_;
     QNetworkReply*       reply_           = nullptr;
     QElapsedTimer        timer_;
-    qint64               totalBytes_      = 0;
+    qint64               totalBytes_       = 0;
     qint64               bytesTransferred_ = 0;
+    qint64               uploadStartMs_    = 0;
 };

@@ -6,6 +6,7 @@
 class QProgressBar;
 class QLabel;
 class QPushButton;
+class QToolButton;
 class QVBoxLayout;
 class QScrollArea;
 class TransferManager;
@@ -22,6 +23,7 @@ private slots:
                         qint64 elapsedMs, qint64 etaMs, double bytesPerSec);
     void on_jobFinished(int id, bool success, const QString& error);
     void on_cancelAll_clicked();
+    void on_clearFinished_clicked();
 
 private:
     static QString formatBytes(qint64 bytes);
@@ -35,12 +37,16 @@ private:
         QLabel*       elapsedLabel;
         QWidget*      container;
         qint64        totalBytes;
+        bool          active;
     };
 
     JobRow* findRow(int jobId);
 
+    void updateButtonStates();
+
     QVBoxLayout*        jobLayout_;
     QPushButton*        cancelAllBtn_;
+    QToolButton*        clearBtn_;
     TransferManager*    manager_;
     std::vector<JobRow> rows_;
 };

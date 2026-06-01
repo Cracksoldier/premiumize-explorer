@@ -71,9 +71,7 @@ void FilePane::setupLayout()
     view_ = new QListView(this);
     view_->setSelectionMode(QAbstractItemView::ExtendedSelection);
     view_->setDragEnabled(true);
-    view_->setAcceptDrops(true);
-    view_->setDropIndicatorShown(true);
-    view_->setDragDropMode(QAbstractItemView::DragDrop);
+    view_->setDragDropMode(QAbstractItemView::DragOnly);
     view_->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(view_, &QListView::doubleClicked,          this, &FilePane::on_itemActivated);
     connect(view_, &QListView::customContextMenuRequested, this, &FilePane::on_contextMenu);
@@ -213,6 +211,27 @@ void FilePane::on_contextMenu(const QPoint& pos)
         auto* newFolderAct = menu.addAction("New Folder…");
         connect(newFolderAct, &QAction::triggered, this,
                 [this]() { emit createFolderRequested(currentCloudId_); });
+    }
+
+    if (type_ == PaneType::Local) {
+        QStringList paths;
+        const auto selected = view_->selectionModel()->selectedIndexes();
+        if (!selected.isEmpty()) {
+            for (const auto& si : selected) {
+                if (upProxy_->isUpEntry(si)) continue;
+                const auto srcIdx = upProxy_->mapToSource(si);
+                paths << localModel_->filePath(srcIdx);
+            }
+        } else if (idx.isValid() && !upProxy_->isUpEntry(idx)) {
+            const auto srcIdx = upProxy_->mapToSource(idx);
+            paths << localModel_->filePath(srcIdx);
+        }
+        if (!paths.isEmpty() && !uploadTargetFolderId_.isEmpty()) {
+            auto* uploadAct = menu.addAction("Upload to Cloud");
+            connect(uploadAct, &QAction::triggered, this, [this, paths]() {
+                emit uploadRequested(paths, uploadTargetFolderId_);
+            });
+        }
     }
 
     if (!menu.isEmpty()) {
