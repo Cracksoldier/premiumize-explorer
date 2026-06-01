@@ -49,9 +49,10 @@ TransferProgressWindow  (non-modal Qt::Tool window)
 | `PremiumizeModel` | `src/model/PremiumizeModel.hpp` | `QAbstractListModel` for the cloud pane (flat list, one folder at a time). Injects a virtual "↑ Up" row at position 0 when not at root; `showUpEntry()` (private) derives visibility from `currentFolderId_` / `parentFolderId_` — no separate stored flag. Use `isUpEntry(row)` and `itemAtViewRow(row)` (returns nullptr for the up row or OOB) at every call site. Emits `application/x-premiumize-items` MIME for drag-and-drop. |
 | `UpEntryProxyModel` | `src/model/UpEntryProxyModel.hpp` | `QIdentityProxyModel` wrapping `QFileSystemModel` for the local pane. Inserts a virtual "↑ Up" row at position 0 when not at root. A heap-allocated `QObject* sentinel_` is used as `internalPointer` to identify the virtual row. `viewRoot_` is a plain `QModelIndex` (not `QPersistentModelIndex`) — `endResetModel()` invalidates persistent indices. Not used for the cloud pane. |
 | `FilePane` | `src/ui/FilePane.hpp` | Reusable widget used for both panes. `PaneType::Local` wraps `QFileSystemModel` via `UpEntryProxyModel`; `PaneType::Cloud` drives `PremiumizeModel`. The cloud pane's download destination is kept in sync with the local pane via `setDownloadPath()`, called by `MainWindow` on every `localPathChanged`. Handles all drag/drop events and emits typed signals upward. |
-| `TransferManager` | `src/transfer/TransferManager.hpp` | Job queue, max 2 concurrent. Job pointers are passed explicitly to `onJobFinished` — never use `QObject::sender()` here, it is unreliable when called from a regular member function. |
-| `UploadJob` | `src/transfer/UploadJob.hpp` | Two-step upload: fetches token/URL via `PremiumizeApi::fetchUploadInfo()` (private reply), then POSTs `QHttpMultiPart`. Uses its own `QNetworkAccessManager`. |
+| `TransferManager` | `src/transfer/TransferManager.hpp` | Job queue, max 2 concurrent. Job pointers are passed explicitly to `onJobFinished` — never use `QObject::sender()` here, it is unreliable when called from a regular member function. Emits `uploadFinished(folderId, success, error)` per upload job so `MainWindow` can auto-refresh the cloud pane. |
+| `UploadJob` | `src/transfer/UploadJob.hpp` | Two-step upload: fetches token/URL via `PremiumizeApi::fetchUploadInfo()` (private reply), then POSTs a manually constructed `QByteArray` multipart body. Uses its own `QNetworkAccessManager` with `Http2AllowedAttribute=false`. |
 | `DownloadJob` | `src/transfer/DownloadJob.hpp` | Streams `QNetworkReply` bytes directly to a `QFile`. Reply comes from `PremiumizeApi::startDownload`. |
+| `LogWindow` | `src/ui/LogWindow.hpp` | Non-modal `Qt::Tool` window showing a timestamped log of all API requests and responses. Opened via **View → API Log**. "Save to File…" and "Clear" buttons. Fed by `PremiumizeApi::requestLogged` signal. |
 | `MainWindow` | `src/ui/MainWindow.hpp` | Wires everything together. Owns all subsystem instances. Connects `PremiumizeApi` signals to pane updates and `FilePane` signals to API calls / transfer enqueuing. |
 
 ### Upload flow (two-step API requirement)
@@ -59,7 +60,10 @@ TransferProgressWindow  (non-modal Qt::Tool window)
 1. `TransferManager::enqueueUpload` → creates `UploadJob`
 2. `UploadJob::start` → calls `api_->fetchUploadInfo(folderId)`, which returns a `QNetworkReply*` owned by this job only (not a shared signal)
 3. `UploadJob` parses the reply, validates `token` and `url`, then calls `startUpload()`
-4. `startUpload` constructs `QHttpMultiPart` with `token` field first, then file, POSTs to `url` via its own `QNetworkAccessManager`. **Field order is significant**: `token` must precede `file` — the Premiumize upload CDN returns HTTP 500 if `file` comes first.
+4. `startUpload` builds a raw `QByteArray` multipart body, sets explicit `Content-Type` and `Content-Length` headers, forces `Http2AllowedAttribute=false`, and POSTs to `url` via its own `QNetworkAccessManager`. **Do not replace with `QHttpMultiPart`** — the energycdn.com CDN rejects Qt's serialized multipart with HTTP 500.
+5. On completion, `TransferManager` emits `uploadFinished(folderId, success, error)`. `MainWindow` refreshes the cloud pane if `folderId` matches the currently displayed folder.
+
+**Field order is significant**: `token` must precede `file` in the multipart body — the CDN returns HTTP 500 if `file` comes first.
 
 **Do not use `requestUploadInfo` from UploadJob** — that emits a shared signal (`uploadInfoReady`) which would be received by all concurrently running upload jobs, giving them all the same one-time token. `fetchUploadInfo` returns a private reply instead.
 
