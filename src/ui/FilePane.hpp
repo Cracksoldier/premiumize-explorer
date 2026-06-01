@@ -20,6 +20,7 @@ public:
 
     void setLocalPath(const QString& path);
     void setDownloadPath(const QString& path) { currentLocalPath_ = path; }
+    void setUploadTargetFolderId(const QString& id) { uploadTargetFolderId_ = id; }
     void setCloudListing(const QString& folderId,
                          const QString& folderName,
                          const QString& parentId);
@@ -71,4 +72,5 @@ private:
     QString currentCloudId_;
     QString currentCloudParent_;
     QString currentCloudName_;
+    QString uploadTargetFolderId_;
 };

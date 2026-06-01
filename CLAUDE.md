@@ -59,7 +59,7 @@ TransferProgressWindow  (non-modal Qt::Tool window)
 1. `TransferManager::enqueueUpload` → creates `UploadJob`
 2. `UploadJob::start` → calls `api_->fetchUploadInfo(folderId)`, which returns a `QNetworkReply*` owned by this job only (not a shared signal)
 3. `UploadJob` parses the reply, validates `token` and `url`, then calls `startUpload()`
-4. `startUpload` constructs `QHttpMultiPart` with `token` field + file, POSTs to `url` via its own `QNetworkAccessManager`
+4. `startUpload` constructs `QHttpMultiPart` with `token` field first, then file, POSTs to `url` via its own `QNetworkAccessManager`. **Field order is significant**: `token` must precede `file` — the Premiumize upload CDN returns HTTP 500 if `file` comes first.
 
 **Do not use `requestUploadInfo` from UploadJob** — that emits a shared signal (`uploadInfoReady`) which would be received by all concurrently running upload jobs, giving them all the same one-time token. `fetchUploadInfo` returns a private reply instead.
 
@@ -71,6 +71,8 @@ TransferProgressWindow  (non-modal Qt::Tool window)
 
 - Local → Cloud: `text/uri-list` dropped on cloud `FilePane` → `uploadRequested` signal
 - Cloud → Local: `application/x-premiumize-items` (JSON array of `{id, name, isFolder, link, size}`) dropped on local `FilePane` → `downloadRequested` signal per non-folder item
+
+The `QListView` in each pane uses `DragOnly` mode (`setDragDropMode(DragOnly)`), **not** `DragDrop`. This is critical: `DragDrop` mode makes the viewport call `setAcceptDrops(true)`, intercepting drops through the model's `canDropMimeData`/`dropMimeData` chain (which has no signal-emitting implementation). With `DragOnly`, the viewport has `setAcceptDrops(false)`, so Qt delivers drop events directly to the `FilePane` parent widget where `dragEnterEvent`/`dropEvent` are implemented.
 
 ### Model index safety
 

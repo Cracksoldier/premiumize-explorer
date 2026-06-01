@@ -1,13 +1,16 @@
 #include "TransferProgressWindow.hpp"
 #include "transfer/TransferManager.hpp"
 
+#include <algorithm>
+#include <QFrame>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QStyle>
+#include <QToolButton>
 #include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QFrame>
 
 TransferProgressWindow::TransferProgressWindow(TransferManager* manager, QWidget* parent)
     : QWidget(parent, Qt::Window | Qt::Tool)
@@ -31,14 +34,28 @@ TransferProgressWindow::TransferProgressWindow(TransferManager* manager, QWidget
     scrollArea->setWidget(scrollContent);
     outerLayout->addWidget(scrollArea);
 
+    auto* btnRow = new QHBoxLayout;
+    btnRow->setContentsMargins(0, 0, 0, 0);
+
+    clearBtn_ = new QToolButton(this);
+    clearBtn_->setIcon(style()->standardIcon(QStyle::SP_DialogDiscardButton));
+    clearBtn_->setToolTip("Clear finished transfers");
+    connect(clearBtn_, &QToolButton::clicked,
+            this, &TransferProgressWindow::on_clearFinished_clicked);
+
     cancelAllBtn_ = new QPushButton("Cancel All", this);
-    outerLayout->addWidget(cancelAllBtn_);
+    connect(cancelAllBtn_, &QPushButton::clicked,
+            this, &TransferProgressWindow::on_cancelAll_clicked);
 
-    connect(cancelAllBtn_, &QPushButton::clicked, this, &TransferProgressWindow::on_cancelAll_clicked);
+    btnRow->addWidget(clearBtn_);
+    btnRow->addWidget(cancelAllBtn_, 1);
+    outerLayout->addLayout(btnRow);
 
-    connect(manager_, &TransferManager::jobStarted,   this, &TransferProgressWindow::on_jobStarted);
-    connect(manager_, &TransferManager::jobProgress,  this, &TransferProgressWindow::on_jobProgress);
-    connect(manager_, &TransferManager::jobFinished,  this, &TransferProgressWindow::on_jobFinished);
+    updateButtonStates();
+
+    connect(manager_, &TransferManager::jobStarted,  this, &TransferProgressWindow::on_jobStarted);
+    connect(manager_, &TransferManager::jobProgress, this, &TransferProgressWindow::on_jobProgress);
+    connect(manager_, &TransferManager::jobFinished, this, &TransferProgressWindow::on_jobFinished);
 }
 
 void TransferProgressWindow::on_jobStarted(int id, const QString& name, qint64 total)
@@ -72,10 +89,10 @@ void TransferProgressWindow::on_jobStarted(int id, const QString& name, qint64 t
     hl->addWidget(elapsedLabel);
     vl->addLayout(hl);
 
-    // Insert before the stretch at the end
     jobLayout_->insertWidget(jobLayout_->count() - 1, container);
 
-    rows_.push_back({id, nameLabel, progressBar, statsLabel, elapsedLabel, container, total});
+    rows_.push_back({id, nameLabel, progressBar, statsLabel, elapsedLabel, container, total, true});
+    updateButtonStates();
 }
 
 void TransferProgressWindow::on_jobProgress(int id, qint64 bytes, qint64 total,
@@ -89,7 +106,7 @@ void TransferProgressWindow::on_jobProgress(int id, qint64 bytes, qint64 total,
         row->progressBar->setMaximum(static_cast<int>(total / 1024));
         row->progressBar->setValue(static_cast<int>(bytes / 1024));
     } else {
-        row->progressBar->setMaximum(0); // indeterminate
+        row->progressBar->setMaximum(0);
     }
 
     row->statsLabel->setText(QStringLiteral("%1 / %2 — %3/s — ETA %4")
@@ -115,12 +132,54 @@ void TransferProgressWindow::on_jobFinished(int id, bool success, const QString&
         row->statsLabel->setText(QStringLiteral("Failed: %1").arg(error));
     }
     row->elapsedLabel->clear();
+    row->active = false;
+    updateButtonStates();
 }
 
 void TransferProgressWindow::on_cancelAll_clicked()
 {
     manager_->cancelAll();
     hide();
+}
+
+void TransferProgressWindow::on_clearFinished_clicked()
+{
+    std::vector<QWidget*> keep;
+    for (const auto& r : rows_)
+        if (r.active) keep.push_back(r.container);
+
+    while (jobLayout_->count() > 1) {
+        auto* item = jobLayout_->takeAt(0);
+        if (auto* w = item->widget()) {
+            const bool isKeep = std::find(keep.begin(), keep.end(), w) != keep.end();
+            if (!isKeep) w->deleteLater();
+        }
+        delete item;
+    }
+
+    rows_.erase(std::remove_if(rows_.begin(), rows_.end(),
+        [](const JobRow& r) { return !r.active; }), rows_.end());
+
+    for (int i = 0; i < static_cast<int>(rows_.size()); ++i) {
+        if (i > 0) {
+            auto* sep = new QFrame;
+            sep->setFrameShape(QFrame::HLine);
+            sep->setFrameShadow(QFrame::Sunken);
+            jobLayout_->insertWidget(jobLayout_->count() - 1, sep);
+        }
+        jobLayout_->insertWidget(jobLayout_->count() - 1, rows_[i].container);
+    }
+
+    updateButtonStates();
+}
+
+void TransferProgressWindow::updateButtonStates()
+{
+    const bool hasAny    = !rows_.empty();
+    const bool hasActive = std::any_of(rows_.begin(), rows_.end(),
+                               [](const JobRow& r) { return r.active; });
+    cancelAllBtn_->setEnabled(hasActive);
+    clearBtn_->setEnabled(hasAny);
 }
 
 TransferProgressWindow::JobRow* TransferProgressWindow::findRow(int jobId)

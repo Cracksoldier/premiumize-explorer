@@ -82,6 +82,9 @@ void TransferManager::dispatchNext()
 void TransferManager::onJobFinished(QObject* job, int jobId, bool success, const QString& error)
 {
     emit jobFinished(jobId, success, error);
+    if (auto* up = qobject_cast<UploadJob*>(job)) {
+        emit uploadFinished(up->targetFolderId(), success, error);
+    }
     active_.erase(std::remove(active_.begin(), active_.end(), job), active_.end());
     job->deleteLater();
     dispatchNext();
