@@ -4,6 +4,7 @@
 #include <QList>
 #include <QWidget>
 
+class QFrame;
 class QLabel;
 class QProgressBar;
 class QScrollArea;
@@ -29,6 +30,7 @@ private:
     struct TransferRow {
         QString       id;
         QWidget*      container  = nullptr;
+        QFrame*       separator  = nullptr;
         QLabel*       nameLabel  = nullptr;
         QLabel*       statusLabel = nullptr;
         QProgressBar* progressBar = nullptr;
