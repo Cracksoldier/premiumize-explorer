@@ -44,7 +44,7 @@ TransferProgressWindow  (non-modal Qt::Tool window)
 | Class | File | Role |
 |---|---|---|
 | `api::PremiumizeApi` | `src/api/PremiumizeApi.hpp` | All HTTP calls; fire-and-emit (never blocking). Auth via `Authorization: Bearer` header. |
-| `api::ApiTypes` | `src/api/ApiTypes.hpp` | Plain data structs: `FolderItem`, `FolderListing`, `UploadInfo`, `AccountInfo`. |
+| `api::ApiTypes` | `src/api/ApiTypes.hpp` | Plain data structs: `FolderItem`, `FolderListing`, `UploadInfo`, `AccountInfo`, `CloudTransferEntry`. |
 | `AppConfig` | `src/config/AppConfig.hpp` | Singleton QSettings facade. Writes to `~/.config/premiumize-explorer/premiumize-explorer.ini`. |
 | `PremiumizeModel` | `src/model/PremiumizeModel.hpp` | `QAbstractListModel` for the cloud pane (flat list, one folder at a time). Injects a virtual "↑ Up" row at position 0 when not at root; `showUpEntry()` (private) derives visibility from `currentFolderId_` / `parentFolderId_` — no separate stored flag. Use `isUpEntry(row)` and `itemAtViewRow(row)` (returns nullptr for the up row or OOB) at every call site. Emits `application/x-premiumize-items` MIME for drag-and-drop. |
 | `UpEntryProxyModel` | `src/model/UpEntryProxyModel.hpp` | `QIdentityProxyModel` wrapping `QFileSystemModel` for the local pane. Inserts a virtual "↑ Up" row at position 0 when not at root. A heap-allocated `QObject* sentinel_` is used as `internalPointer` to identify the virtual row. `viewRoot_` is a plain `QModelIndex` (not `QPersistentModelIndex`) — `endResetModel()` invalidates persistent indices. Not used for the cloud pane. |
@@ -53,6 +53,7 @@ TransferProgressWindow  (non-modal Qt::Tool window)
 | `UploadJob` | `src/transfer/UploadJob.hpp` | Two-step upload: fetches token/URL via `PremiumizeApi::fetchUploadInfo()` (private reply), then POSTs a manually constructed `QByteArray` multipart body. Uses its own `QNetworkAccessManager` with `Http2AllowedAttribute=false`. |
 | `DownloadJob` | `src/transfer/DownloadJob.hpp` | Streams `QNetworkReply` bytes directly to a `QFile`. Reply comes from `PremiumizeApi::startDownload`. |
 | `LogWindow` | `src/ui/LogWindow.hpp` | Non-modal `Qt::Tool` window showing a timestamped log of all API requests and responses. Opened via **View → API Log**. "Save to File…" and "Clear" buttons. Fed by `PremiumizeApi::requestLogged` signal. |
+| `CloudTransfersWindow` | `src/ui/CloudTransfersWindow.hpp` | Non-modal `Qt::Tool` window showing Premiumize server-side transfers (`GET /transfer/list`). Displays name, status badge, progress bar, speed, and ETA. Polls every 5 s while visible; stops polling when hidden. Opened via **View → Cloud Transfers**. |
 | `MainWindow` | `src/ui/MainWindow.hpp` | Wires everything together. Owns all subsystem instances. Connects `PremiumizeApi` signals to pane updates and `FilePane` signals to API calls / transfer enqueuing. |
 
 ### Upload flow (two-step API requirement)
