@@ -15,8 +15,6 @@
       --accent-h: #0052a3;
       --code-bg:  #f0f0f0;
       --code-fg:  #1a1a1a;
-      --green:    #1a7f37;
-      --red:      #cf222e;
     }
     @media (prefers-color-scheme: dark) {
       :root {
@@ -29,8 +27,6 @@
         --accent-h: #70b8ff;
         --code-bg:  #1e1e20;
         --code-fg:  #d4d4d4;
-        --green:    #3fb950;
-        --red:      #f85149;
       }
     }
 
@@ -81,7 +77,6 @@
       letter-spacing: 0.06em;
       margin: 1rem 0 0.3rem 0.4rem;
     }
-    .sidebar nav .indent { padding-left: 0.9rem; }
 
     /* ── main content ── */
     .content {
@@ -270,18 +265,90 @@
     footer a { color: var(--muted); }
     footer a:hover { color: var(--accent); }
 
+    /* ── mobile nav ── */
+    .mobile-nav { display: none; }
+
     @media (max-width: 680px) {
       .sidebar { display: none; }
-      .content { padding: 1.5rem 1rem 3rem; }
+      .content { padding: 1.5rem 1rem 3rem; max-width: 100%; }
+
+      .mobile-nav {
+        display: block;
+        border-bottom: 1px solid var(--border);
+        background: var(--bg2);
+      }
+      .mobile-nav summary {
+        padding: 0.7rem 1rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        list-style: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: var(--text);
+      }
+      .mobile-nav summary::-webkit-details-marker { display: none; }
+      .mobile-nav summary::after {
+        content: "▾";
+        font-size: 0.8rem;
+        color: var(--muted);
+        transition: transform 0.15s;
+      }
+      .mobile-nav[open] summary::after { transform: rotate(180deg); }
+      .mobile-nav ul {
+        list-style: none;
+        padding: 0.4rem 0 0.8rem;
+        border-top: 1px solid var(--border);
+      }
+      .mobile-nav ul li { margin: 0; }
+      .mobile-nav ul .group {
+        font-weight: 600;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        padding: 0.6rem 1rem 0.2rem;
+      }
+      .mobile-nav ul a {
+        display: block;
+        padding: 0.35rem 1rem;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      .mobile-nav ul a:hover { color: var(--accent); text-decoration: none; }
     }
   </style>
 </head>
 <body>
 
+<!-- ── Mobile nav (hidden on desktop, shown at ≤680px) ── -->
+<details class="mobile-nav">
+  <summary>On this page</summary>
+  <ul>
+    <li><div class="group">Overview</div></li>
+    <li><a href="#architecture">Architecture</a></li>
+    <li><a href="#data-flow">Data flow</a></li>
+    <li><div class="group">API reference</div></li>
+    <li><a href="#auth">Authentication</a></li>
+    <li><a href="#data-types">Data types</a></li>
+    <li><a href="#endpoints">Endpoints</a></li>
+    <li><a href="#signals">Signals</a></li>
+    <li><div class="group">Subsystems</div></li>
+    <li><a href="#upload-flow">Upload flow</a></li>
+    <li><a href="#transfer-manager">Transfer manager</a></li>
+    <li><a href="#cloud-transfers">Cloud transfers window</a></li>
+    <li><a href="#log-window">API log window</a></li>
+    <li><div class="group">UI</div></li>
+    <li><a href="#panes">File panes</a></li>
+    <li><a href="#drag-drop">Drag &amp; drop</a></li>
+  </ul>
+</details>
+
 <div class="page">
 
   <!-- ── Sidebar ── -->
-  <aside class="sidebar">
+  <aside class="sidebar" aria-label="Page navigation">
     <a class="logo" href="index.html">premiumize<span>-explorer</span></a>
     <nav>
       <ul>
@@ -403,10 +470,10 @@ PremiumizeApi::transferListReady ──▶ CloudTransfersWindow (polled every 5 
 
       <h3>AccountInfo</h3>
       <table>
-        <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+        <thead><tr><th>Field</th><th>Type</th><th>JSON key</th><th>Notes</th></tr></thead>
         <tbody>
-          <tr><td><code>spaceUsed</code></td><td><code>qint64</code></td><td>Bytes used</td></tr>
-          <tr><td><code>spaceTotal</code></td><td><code>qint64</code></td><td>Total quota in bytes</td></tr>
+          <tr><td><code>spaceUsed</code></td><td><code>qint64</code></td><td><code>space_used</code></td><td>Bytes used</td></tr>
+          <tr><td><code>spaceTotal</code></td><td><code>qint64</code></td><td><code>limit_used</code></td><td>Total quota in bytes (Premiumize API key name is <code>limit_used</code>)</td></tr>
         </tbody>
       </table>
 
