@@ -77,9 +77,11 @@ void CloudTransfersWindow::on_refresh_clicked()
 
 void CloudTransfersWindow::on_transferListReady(const QList<api::CloudTransferEntry>& entries)
 {
-    // Remove old rows from layout
-    for (auto& row : rows_)
+    // Remove old rows from layout (separators are not Qt-parented to container, so delete explicitly)
+    for (auto& row : rows_) {
+        delete row.separator;
         delete row.container;
+    }
     rows_.clear();
 
     const bool hasEntries = !entries.isEmpty();
@@ -146,10 +148,10 @@ void CloudTransfersWindow::on_transferListReady(const QList<api::CloudTransferEn
 
         // Separator line above each row except first
         if (!rows_.isEmpty()) {
-            auto* sep = new QFrame(row.container->parentWidget());
-            sep->setFrameShape(QFrame::HLine);
-            sep->setFrameShadow(QFrame::Sunken);
-            rowLayout_->insertWidget(rowLayout_->count() - 1, sep);
+            row.separator = new QFrame;
+            row.separator->setFrameShape(QFrame::HLine);
+            row.separator->setFrameShadow(QFrame::Sunken);
+            rowLayout_->insertWidget(rowLayout_->count() - 1, row.separator);
         }
 
         rowLayout_->insertWidget(rowLayout_->count() - 1, row.container);
