@@ -1,6 +1,7 @@
 #pragma once
 #include <QString>
 #include <QDateTime>
+#include <QList>
 #include <optional>
 #include <vector>
 
@@ -35,6 +36,17 @@ struct UploadInfo {
 struct AccountInfo {
     qint64 spaceUsed  = 0;
     qint64 spaceTotal = 0;
+};
+
+struct CloudTransferEntry {
+    QString id;
+    QString name;
+    QString status;    // "waiting", "running", "finished", "seeding", "deleted", "error"
+    float   progress = 0.f; // 0.0–1.0
+    qint64  speedDown = 0;  // bytes/sec
+    qint64  eta = -1;       // seconds remaining; -1 = unknown
+    QString message;
+    QString fileId;
 };
 
 } // namespace api

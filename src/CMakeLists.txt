@@ -15,9 +15,11 @@ add_executable(premiumize-explorer
     resources/resources.qrc
 
     ui/ApiKeyDialog.cpp
+    ui/CloudTransfersWindow.cpp
     ui/CreateFolderDialog.cpp
     ui/FilePane.cpp
     ui/MainWindow.cpp
+    ui/LogWindow.cpp
     ui/TransferProgressWindow.cpp
 
     transfer/DownloadJob.cpp
