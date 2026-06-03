@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Technical Documentation — premiumize-explorer</title>
+  <style>
+    :root {
+      --bg:       #ffffff;
+      --bg2:      #f5f5f7;
+      --border:   #e0e0e0;
+      --text:     #1a1a1a;
+      --muted:    #555;
+      --accent:   #0066cc;
+      --accent-h: #0052a3;
+      --code-bg:  #f0f0f0;
+      --code-fg:  #1a1a1a;
+      --green:    #1a7f37;
+      --red:      #cf222e;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:       #111113;
+        --bg2:      #1c1c1e;
+        --border:   #2c2c2e;
+        --text:     #f0f0f0;
+        --muted:    #aaa;
+        --accent:   #4da3ff;
+        --accent-h: #70b8ff;
+        --code-bg:  #1e1e20;
+        --code-fg:  #d4d4d4;
+        --green:    #3fb950;
+        --red:      #f85149;
+      }
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { color: var(--accent-h); text-decoration: underline; }
+
+    /* ── layout ── */
+    .page { display: flex; min-height: 100vh; }
+
+    /* ── sidebar ── */
+    .sidebar {
+      width: 220px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      border-right: 1px solid var(--border);
+      padding: 1.5rem 1rem;
+      font-size: 0.87rem;
+    }
+    .sidebar .logo {
+      font-weight: 700;
+      font-size: 1rem;
+      margin-bottom: 1.4rem;
+      display: block;
+      color: var(--text);
+    }
+    .sidebar .logo span { color: var(--accent); }
+    .sidebar nav ul { list-style: none; }
+    .sidebar nav li { margin: 0.1rem 0; }
+    .sidebar nav a { color: var(--muted); display: block; padding: 0.2rem 0.4rem; border-radius: 4px; }
+    .sidebar nav a:hover { color: var(--text); background: var(--bg2); text-decoration: none; }
+    .sidebar nav .group {
+      font-weight: 600;
+      color: var(--text);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin: 1rem 0 0.3rem 0.4rem;
+    }
+    .sidebar nav .indent { padding-left: 0.9rem; }
+
+    /* ── main content ── */
+    .content {
+      flex: 1;
+      min-width: 0;
+      padding: 2.5rem 2rem 4rem;
+      max-width: 800px;
+    }
+
+    /* ── page title ── */
+    .page-title { margin-bottom: 0.4rem; font-size: 1.9rem; font-weight: 700; }
+    .page-subtitle { color: var(--muted); font-size: 1rem; margin-bottom: 2.5rem; }
+
+    /* ── sections ── */
+    .section { margin-bottom: 3rem; }
+    .section h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 1.2rem;
+    }
+    .section h3 {
+      font-size: 1.02rem;
+      font-weight: 600;
+      margin: 1.4rem 0 0.5rem;
+    }
+    .section p { color: var(--muted); font-size: 0.93rem; margin-bottom: 0.75rem; }
+    .section p:last-child { margin-bottom: 0; }
+
+    /* ── code ── */
+    pre, code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    }
+    pre {
+      background: var(--code-bg);
+      color: var(--code-fg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.9rem 1rem;
+      overflow-x: auto;
+      font-size: 0.85rem;
+      line-height: 1.55;
+      margin: 0.5rem 0 1rem;
+    }
+    code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 0.1em 0.35em;
+      font-size: 0.86em;
+    }
+    pre code { background: none; border: none; padding: 0; font-size: inherit; }
+    .comment { color: var(--muted); }
+    .kw { color: var(--accent); }
+
+    /* ── endpoint cards ── */
+    .endpoint {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: 1rem 0 1.5rem;
+      overflow: hidden;
+    }
+    .endpoint-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.7rem 1rem;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+    }
+    .method {
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 0.2em 0.55em;
+      border-radius: 4px;
+      letter-spacing: 0.04em;
+    }
+    .method.get  { background: #dbeafe; color: #1d4ed8; }
+    .method.post { background: #dcfce7; color: #15803d; }
+    @media (prefers-color-scheme: dark) {
+      .method.get  { background: #1e3a5f; color: #93c5fd; }
+      .method.post { background: #14532d; color: #86efac; }
+    }
+    .endpoint-path {
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+    .endpoint-body { padding: 0.9rem 1rem; font-size: 0.9rem; }
+    .endpoint-body p { margin-bottom: 0.6rem; color: var(--muted); }
+
+    /* ── param / field tables ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      margin: 0.5rem 0 1rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 0.45rem 0.7rem;
+      border-bottom: 1px solid var(--border);
+    }
+    th {
+      font-weight: 600;
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    tr:last-child td { border-bottom: none; }
+    td code { font-size: 0.83em; }
+    .opt { color: var(--muted); font-size: 0.8em; }
+
+    /* ── signal badge ── */
+    .signal-row {
+      display: flex;
+      align-items: baseline;
+      gap: 0.6rem;
+      padding: 0.4rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
+    }
+    .signal-row:last-child { border-bottom: none; }
+    .sig-badge {
+      font-size: 0.73rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.1em 0.45em;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+    .sig-name { font-family: "SFMono-Regular", Consolas, monospace; font-weight: 600; }
+    .sig-desc { color: var(--muted); font-size: 0.86rem; }
+
+    /* ── note box ── */
+    .note {
+      background: var(--bg2);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 6px 6px 0;
+      padding: 0.8rem 1rem;
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin: 0.75rem 0 1rem;
+    }
+    .note strong { color: var(--text); }
+
+    .warn {
+      background: var(--bg2);
+      border-left: 3px solid #e5a000;
+      border-radius: 0 6px 6px 0;
+      padding: 0.8rem 1rem;
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin: 0.75rem 0 1rem;
+    }
+    .warn strong { color: var(--text); }
+
+    /* ── flow diagram ── */
+    .flow {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem 1.2rem;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 0.83rem;
+      line-height: 1.8;
+      white-space: pre;
+      overflow-x: auto;
+    }
+
+    /* ── footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 1.5rem 0;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-top: 2rem;
+    }
+    footer a { color: var(--muted); }
+    footer a:hover { color: var(--accent); }
+
+    @media (max-width: 680px) {
+      .sidebar { display: none; }
+      .content { padding: 1.5rem 1rem 3rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar">
+    <a class="logo" href="index.html">premiumize<span>-explorer</span></a>
+    <nav>
+      <ul>
+        <li><a href="index.html">← Back to home</a></li>
+
+        <li><div class="group">Overview</div></li>
+        <li><a href="#architecture">Architecture</a></li>
+        <li><a href="#data-flow">Data flow</a></li>
+
+        <li><div class="group">API reference</div></li>
+        <li><a href="#auth">Authentication</a></li>
+        <li><a href="#data-types">Data types</a></li>
+        <li><a href="#endpoints">Endpoints</a></li>
+        <li><a href="#signals">Signals</a></li>
+
+        <li><div class="group">Subsystems</div></li>
+        <li><a href="#upload-flow">Upload flow</a></li>
+        <li><a href="#transfer-manager">Transfer manager</a></li>
+        <li><a href="#cloud-transfers">Cloud transfers window</a></li>
+        <li><a href="#log-window">API log window</a></li>
+
+        <li><div class="group">UI</div></li>
+        <li><a href="#panes">File panes</a></li>
+        <li><a href="#drag-drop">Drag &amp; drop</a></li>
+      </ul>
+    </nav>
+  </aside>
+
+  <!-- ── Content ── -->
+  <main class="content">
+
+    <h1 class="page-title">Technical Documentation</h1>
+    <p class="page-subtitle">Architecture, API reference, and internals for premiumize-explorer.</p>
+
+    <!-- ══ Architecture ══ -->
+    <div class="section" id="architecture">
+      <h2>Architecture</h2>
+      <p>premiumize-explorer is a single-process Qt6 desktop application written in C++20. It follows a signal/slot communication model: subsystems never call each other directly across boundaries — they emit signals that <code>MainWindow</code> listens to and routes.</p>
+
+      <h3>Key classes</h3>
+      <table>
+        <thead><tr><th>Class</th><th>File</th><th>Role</th></tr></thead>
+        <tbody>
+          <tr><td><code>PremiumizeApi</code></td><td><code>src/api/PremiumizeApi.hpp</code></td><td>All HTTP calls. Non-blocking — every call returns immediately and emits a signal when done.</td></tr>
+          <tr><td><code>TransferManager</code></td><td><code>src/transfer/TransferManager.hpp</code></td><td>Job queue (max 2 concurrent). Owns <code>UploadJob</code> and <code>DownloadJob</code> instances.</td></tr>
+          <tr><td><code>PremiumizeModel</code></td><td><code>src/model/PremiumizeModel.hpp</code></td><td><code>QAbstractListModel</code> for the cloud pane. Flat list, one folder at a time.</td></tr>
+          <tr><td><code>UpEntryProxyModel</code></td><td><code>src/model/UpEntryProxyModel.hpp</code></td><td><code>QIdentityProxyModel</code> wrapping <code>QFileSystemModel</code> for the local pane.</td></tr>
+          <tr><td><code>FilePane</code></td><td><code>src/ui/FilePane.hpp</code></td><td>Reusable widget for both panes. Handles drag/drop, context menus, and toolbar actions.</td></tr>
+          <tr><td><code>TransferProgressWindow</code></td><td><code>src/ui/TransferProgressWindow.hpp</code></td><td>Non-modal tool window tracking local upload/download jobs.</td></tr>
+          <tr><td><code>CloudTransfersWindow</code></td><td><code>src/ui/CloudTransfersWindow.hpp</code></td><td>Non-modal tool window showing Premiumize server-side transfers. Polls every 5 s.</td></tr>
+          <tr><td><code>LogWindow</code></td><td><code>src/ui/LogWindow.hpp</code></td><td>Non-modal tool window with a timestamped log of all API requests and responses.</td></tr>
+          <tr><td><code>AppConfig</code></td><td><code>src/config/AppConfig.hpp</code></td><td>Singleton <code>QSettings</code> facade. Persists API key, paths, geometry, theme preference.</td></tr>
+          <tr><td><code>MainWindow</code></td><td><code>src/ui/MainWindow.hpp</code></td><td>Root widget. Owns all subsystem instances and wires their signals together.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ══ Data flow ══ -->
+    <div class="section" id="data-flow">
+      <h2>Data flow</h2>
+      <div class="flow">PremiumizeApi  ──signals──▶  MainWindow  ──calls──▶  FilePane / PremiumizeModel
+     ▲                           │
+     │                           ▼
+TransferManager  ◀──enqueue──  FilePane (drag-drop / context menu)
+     │
+     ├──▶  TransferProgressWindow  (local job progress)
+     └──▶  MainWindow::uploadFinished  (triggers cloud pane refresh)
+
+PremiumizeApi::requestLogged ──▶ LogWindow
+PremiumizeApi::transferListReady ──▶ CloudTransfersWindow (polled every 5 s)</div>
+    </div>
+
+    <!-- ══ Authentication ══ -->
+    <div class="section" id="auth">
+      <h2>Authentication</h2>
+      <p>Every request carries an <code>Authorization: Bearer &lt;api_key&gt;</code> header, set via <code>PremiumizeApi::setApiKey()</code>. The key is read from <code>AppConfig</code> on startup and can be changed at runtime via <strong>File → Change API Key…</strong></p>
+      <pre>Authorization: Bearer &lt;your_api_key&gt;</pre>
+      <p>The API key is stored in <code>~/.config/premiumize-explorer/premiumize-explorer.ini</code> under the <code>[auth]</code> group.</p>
+    </div>
+
+    <!-- ══ Data types ══ -->
+    <div class="section" id="data-types">
+      <h2>Data types</h2>
+      <p>All types are declared in <code>src/api/ApiTypes.hpp</code> inside the <code>api</code> namespace.</p>
+
+      <h3>FolderItem</h3>
+      <table>
+        <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><code>id</code></td><td><code>QString</code></td><td>Premiumize item ID</td></tr>
+          <tr><td><code>name</code></td><td><code>QString</code></td><td>Display name</td></tr>
+          <tr><td><code>type</code></td><td><code>ItemType</code></td><td><code>File</code> or <code>Folder</code></td></tr>
+          <tr><td><code>createdAt</code></td><td><code>QDateTime</code></td><td>Creation timestamp (UTC)</td></tr>
+          <tr><td><code>size</code></td><td><code>optional&lt;qint64&gt;</code></td><td>Bytes; absent for folders</td></tr>
+          <tr><td><code>mimeType</code></td><td><code>optional&lt;QString&gt;</code></td><td>MIME type; absent for folders</td></tr>
+          <tr><td><code>link</code></td><td><code>optional&lt;QString&gt;</code></td><td>Direct download URL; absent for folders</td></tr>
+        </tbody>
+      </table>
+
+      <h3>FolderListing</h3>
+      <table>
+        <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><code>folderId</code></td><td><code>QString</code></td><td>ID of the listed folder (empty = root)</td></tr>
+          <tr><td><code>name</code></td><td><code>QString</code></td><td>Folder display name</td></tr>
+          <tr><td><code>parentId</code></td><td><code>QString</code></td><td>Parent folder ID; empty at root</td></tr>
+          <tr><td><code>content</code></td><td><code>vector&lt;FolderItem&gt;</code></td><td>Direct children</td></tr>
+        </tbody>
+      </table>
+
+      <h3>UploadInfo</h3>
+      <table>
+        <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><code>token</code></td><td><code>QString</code></td><td>One-time upload token; must appear before <code>file</code> in the multipart body</td></tr>
+          <tr><td><code>url</code></td><td><code>QString</code></td><td>CDN upload endpoint URL</td></tr>
+        </tbody>
+      </table>
+
+      <h3>AccountInfo</h3>
+      <table>
+        <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><code>spaceUsed</code></td><td><code>qint64</code></td><td>Bytes used</td></tr>
+          <tr><td><code>spaceTotal</code></td><td><code>qint64</code></td><td>Total quota in bytes</td></tr>
+        </tbody>
+      </table>
+
+      <h3>CloudTransferEntry</h3>
+      <p>Represents one server-side transfer from <code>GET /transfer/list</code>.</p>
+      <table>
+        <thead><tr><th>Field</th><th>Type</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><code>id</code></td><td><code>QString</code></td><td>Transfer ID</td></tr>
+          <tr><td><code>name</code></td><td><code>QString</code></td><td>Display name (usually filename or torrent title)</td></tr>
+          <tr><td><code>status</code></td><td><code>QString</code></td><td><code>waiting</code>, <code>running</code>, <code>finished</code>, <code>seeding</code>, <code>deleted</code>, <code>error</code></td></tr>
+          <tr><td><code>progress</code></td><td><code>float</code></td><td>0.0–1.0</td></tr>
+          <tr><td><code>speedDown</code></td><td><code>qint64</code></td><td>Current download speed in bytes/sec</td></tr>
+          <tr><td><code>eta</code></td><td><code>qint64</code></td><td>Estimated seconds remaining; <code>-1</code> = unknown</td></tr>
+          <tr><td><code>message</code></td><td><code>QString</code></td><td>Status or error text from the server</td></tr>
+          <tr><td><code>fileId</code></td><td><code>QString</code></td><td>Resulting cloud file ID; populated once <code>status == "finished"</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ══ Endpoints ══ -->
+    <div class="section" id="endpoints">
+      <h2>Endpoints</h2>
+      <p>All methods are on <code>api::PremiumizeApi</code> (<code>src/api/PremiumizeApi.hpp</code>). Base URL: <code>https://www.premiumize.me/api</code>.</p>
+
+      <!-- folder/list -->
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="endpoint-path">/folder/list</span>
+        </div>
+        <div class="endpoint-body">
+          <p>List the contents of a folder. Pass an empty string to list the root.</p>
+          <pre>void listFolder(const QString&amp; folderId = {});</pre>
+          <table>
+            <thead><tr><th>Parameter</th><th>Where</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td><code>id</code> <span class="opt">optional</span></td><td>Query string</td><td>Folder ID. Omit to list root.</td></tr>
+            </tbody>
+          </table>
+          <p><strong>Emits:</strong> <code>folderListingReady(FolderListing)</code></p>
+        </div>
+      </div>
+
+      <!-- folder/create -->
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method post">POST</span>
+          <span class="endpoint-path">/folder/create</span>
+        </div>
+        <div class="endpoint-body">
+          <p>Create a new cloud folder.</p>
+          <pre>void createFolder(const QString&amp; name, const QString&amp; parentId = {});</pre>
+          <table>
+            <thead><tr><th>Parameter</th><th>Where</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td><code>name</code></td><td>Form body</td><td>New folder name</td></tr>
+              <tr><td><code>parent_id</code> <span class="opt">optional</span></td><td>Form body</td><td>Parent folder ID; omit to create at root</td></tr>
+            </tbody>
+          </table>
+          <p><strong>Emits:</strong> <code>folderCreated(newFolderId)</code></p>
+        </div>
+      </div>
+
+      <!-- folder/delete + item/delete -->
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method post">POST</span>
+          <span class="endpoint-path">/folder/delete &nbsp;·&nbsp; /item/delete</span>
+        </div>
+        <div class="endpoint-body">
+          <p>Delete a file or folder. The endpoint is chosen automatically based on the <code>isFolder</code> argument.</p>
+          <pre>void deleteItem(const QString&amp; id, bool isFolder);</pre>
+          <table>
+            <thead><tr><th>Parameter</th><th>Where</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td><code>id</code></td><td>Form body</td><td>Item ID to delete</td></tr>
+            </tbody>
+          </table>
+          <p><strong>Emits:</strong> <code>deleteFinished(success, errorMessage)</code></p>
+          <div class="warn">
+            <strong>Single handler contract:</strong> <code>deleteItem</code> uses its own <code>QNetworkReply::finished</code> handler and does <em>not</em> call <code>handleJsonReply</code>. Never add a second <code>connect</code> to the same reply — both lambdas would fire on the same emission.
+          </div>
+        </div>
+      </div>
+
+      <!-- folder/paste -->
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method post">POST</span>
+          <span class="endpoint-path">/folder/paste</span>
+        </div>
+        <div class="endpoint-body">
+          <p>Move files and/or folders into a target folder (used for drag-and-drop rearrangement).</p>
+          <pre>void pasteItems(const QString&amp; targetFolderId,
+               const QStringList&amp; fileIds,
+               const QStringList&amp; folderIds);</pre>
+          <table>
+            <thead><tr><th>Parameter</th><th>Where</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td><code>id</code></td><td>Form body</td><td>Destination folder ID</td></tr>
+              <tr><td><code>files[]</code></td><td>Form body (repeated)</td><td>File IDs to move</td></tr>
+              <tr><td><code>folders[]</code></td><td>Form body (repeated)</td><td>Folder IDs to move</td></tr>
+            </tbody>
+          </table>
+          <p><strong>Emits:</strong> <code>pasteFinished(success, errorMessage)</code></p>
+        </div>
+      </div>
+
+      <!-- folder/uploadinfo -->
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="endpoint-path">/folder/uploadinfo</span>
+        </div>
+        <div class="endpoint-body">
+          <p>Obtain a one-time upload token and CDN URL. Two variants exist:</p>
+          <pre><span class="comment">// Shared-signal variant (for UI use)</span>
+void requestUploadInfo(const QString&amp; targetFolderId = {});
+
+<span class="comment">// Private-reply variant — used by UploadJob to avoid token sharing</span>
+QNetworkReply* fetchUploadInfo(const QString&amp; targetFolderId = {});</pre>
+          <table>
+            <thead><tr><th>Parameter</th><th>Where</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td><code>id</code> <span class="opt">optional</span></td><td>Query string</td><td>Target folder ID; omit for root</td></tr>
+            </tbody>
+          </table>
+          <p><strong>Emits (shared variant):</strong> <code>uploadInfoReady(UploadInfo)</code></p>
+          <div class="warn">
+            <strong>Always use <code>fetchUploadInfo</code> inside <code>UploadJob</code></strong>, not <code>requestUploadInfo</code>. The shared signal would deliver the same one-time token to all concurrently running upload jobs, causing all but the first to fail.
+          </div>
+        </div>
+      </div>
+
+      <!-- account/info -->
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="endpoint-path">/account/info</span>
+        </div>
+        <div class="endpoint-body">
+          <p>Fetch quota usage. Called once on startup to populate the status bar.</p>
+          <pre>void fetchAccountInfo();</pre>
+          <p><strong>Emits:</strong> <code>accountInfoReady(AccountInfo)</code></p>
+        </div>
+      </div>
+
+      <!-- transfer/list -->
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="endpoint-path">/transfer/list</span>
+        </div>
+        <div class="endpoint-body">
+          <p>List all server-side transfers (torrents, URL/magnet downloads that Premiumize is processing). Called by <code>CloudTransfersWindow</code> every 5 s while the window is visible.</p>
+          <pre>void fetchTransferList();</pre>
+          <p><strong>Emits:</strong> <code>transferListReady(QList&lt;CloudTransferEntry&gt;)</code></p>
+        </div>
+      </div>
+
+      <!-- startDownload (raw) -->
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="endpoint-path">&lt;direct download URL&gt;</span>
+        </div>
+        <div class="endpoint-body">
+          <p>Start a streaming download. Returns a raw <code>QNetworkReply*</code> that <code>DownloadJob</code> pipes directly to a <code>QFile</code>. No signal is emitted by <code>PremiumizeApi</code>; progress reporting goes through <code>TransferManager</code>.</p>
+          <pre>QNetworkReply* startDownload(const QString&amp; url);</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ Signals ══ -->
+    <div class="section" id="signals">
+      <h2>Signals</h2>
+      <p>All signals are on <code>api::PremiumizeApi</code>. They are always emitted on the main thread.</p>
+      <div style="border:1px solid var(--border);border-radius:8px;padding:0.5rem 1rem;margin-top:0.5rem">
+        <div class="signal-row">
+          <span class="sig-badge">SIGNAL</span>
+          <span class="sig-name">folderListingReady(FolderListing)</span>
+          <span class="sig-desc">— folder contents ready for display</span>
+        </div>
+        <div class="signal-row">
+          <span class="sig-badge">SIGNAL</span>
+          <span class="sig-name">folderCreated(QString newFolderId)</span>
+          <span class="sig-desc">— new folder ID from the server</span>
+        </div>
+        <div class="signal-row">
+          <span class="sig-badge">SIGNAL</span>
+          <span class="sig-name">deleteFinished(bool, QString)</span>
+          <span class="sig-desc">— success flag + optional error message</span>
+        </div>
+        <div class="signal-row">
+          <span class="sig-badge">SIGNAL</span>
+          <span class="sig-name">pasteFinished(bool, QString)</span>
+          <span class="sig-desc">— success flag + optional error message</span>
+        </div>
+        <div class="signal-row">
+          <span class="sig-badge">SIGNAL</span>
+          <span class="sig-name">uploadInfoReady(UploadInfo)</span>
+          <span class="sig-desc">— one-time token + CDN URL; do not use inside UploadJob</span>
+        </div>
+        <div class="signal-row">
+          <span class="sig-badge">SIGNAL</span>
+          <span class="sig-name">accountInfoReady(AccountInfo)</span>
+          <span class="sig-desc">— quota usage for the status bar</span>
+        </div>
+        <div class="signal-row">
+          <span class="sig-badge">SIGNAL</span>
+          <span class="sig-name">transferListReady(QList&lt;CloudTransferEntry&gt;)</span>
+          <span class="sig-desc">— current server-side transfer list</span>
+        </div>
+        <div class="signal-row">
+          <span class="sig-badge">SIGNAL</span>
+          <span class="sig-name">networkError(QString)</span>
+          <span class="sig-desc">— emitted for any non-success response or network failure</span>
+        </div>
+        <div class="signal-row">
+          <span class="sig-badge">SIGNAL</span>
+          <span class="sig-name">requestLogged(QString)</span>
+          <span class="sig-desc">— one log line per request/response, consumed by LogWindow</span>
+        </div>
+      </div>
+      <div class="note" style="margin-top:0.9rem">
+        <strong>handleJsonReply</strong> is a private helper that wires <code>QNetworkReply::finished</code>, reads the body, checks <code>status == "success"</code>, and invokes a handler lambda. It also emits <code>requestLogged</code> with the HTTP status code, latency, and truncated body. Most endpoints use it; <code>deleteItem</code> uses its own handler to avoid emitting <code>networkError</code> on failure (which would cause a double response).
+      </div>
+    </div>
+
+    <!-- ══ Upload flow ══ -->
+    <div class="section" id="upload-flow">
+      <h2>Upload flow</h2>
+      <p>Uploads require two API calls because Premiumize uses a CDN for the actual file transfer.</p>
+      <ol style="padding-left:1.3rem;color:var(--muted);font-size:0.93rem;line-height:2">
+        <li><code>TransferManager::enqueueUpload</code> creates an <code>UploadJob</code> and starts it when a slot is free.</li>
+        <li><code>UploadJob::start</code> calls <code>api_->fetchUploadInfo(folderId)</code>, which returns a private <code>QNetworkReply*</code>.</li>
+        <li>The reply is parsed to extract <code>token</code> and <code>url</code>.</li>
+        <li><code>startUpload()</code> builds a raw <code>QByteArray</code> multipart body and POSTs it to the CDN URL via a dedicated <code>QNetworkAccessManager</code> with <code>Http2AllowedAttribute=false</code>.</li>
+        <li>On completion, <code>TransferManager</code> emits <code>uploadFinished(folderId, success, error)</code>. <code>MainWindow</code> refreshes the cloud pane if the folder ID matches the one currently displayed.</li>
+      </ol>
+      <div class="warn">
+        <strong>Do not use <code>QHttpMultiPart</code> here.</strong> The energycdn.com CDN returns HTTP 500 for Qt's serialized multipart format. The body must be built manually as a <code>QByteArray</code>.<br><br>
+        <strong>Field order matters:</strong> <code>token</code> must come before <code>file</code> in the multipart body — reversing the order also triggers HTTP 500.
+      </div>
+    </div>
+
+    <!-- ══ Transfer manager ══ -->
+    <div class="section" id="transfer-manager">
+      <h2>Transfer manager</h2>
+      <p><code>TransferManager</code> (<code>src/transfer/TransferManager.hpp</code>) maintains a FIFO queue and runs at most <code>MaxConcurrent = 2</code> jobs simultaneously.</p>
+
+      <h3>Enqueueing</h3>
+      <pre>void enqueueUpload(const QStringList&amp; localPaths, const QString&amp; targetFolderId);
+void enqueueDownload(const QString&amp; remoteUrl, const QString&amp; localDestPath,
+                     qint64 expectedSize, const QString&amp; itemName);</pre>
+      <p>Each call appends a factory lambda to an internal <code>std::deque</code>. Jobs are not created until <code>dispatchNext()</code> pulls them from the queue.</p>
+
+      <h3>Signals emitted by TransferManager</h3>
+      <table>
+        <thead><tr><th>Signal</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><code>jobStarted(jobId, name, totalBytes)</code></td><td>Consumed by <code>TransferProgressWindow</code></td></tr>
+          <tr><td><code>jobProgress(jobId, bytes, total, elapsedMs, etaMs, bytesPerSec)</code></td><td>Fired continuously during transfer</td></tr>
+          <tr><td><code>jobFinished(jobId, success, error)</code></td><td>Consumed by <code>TransferProgressWindow</code></td></tr>
+          <tr><td><code>uploadFinished(folderId, success, error)</code></td><td>Consumed by <code>MainWindow</code> to auto-refresh the cloud pane</td></tr>
+          <tr><td><code>allFinished()</code></td><td>Emitted when both the active list and queue are empty</td></tr>
+        </tbody>
+      </table>
+
+      <div class="note">
+        <strong>cancelAll() iterator safety:</strong> <code>QNetworkReply::abort()</code> emits <code>finished</code> synchronously, which chains into <code>onJobFinished()</code> → <code>active_.erase()</code>. <code>cancelAll()</code> therefore iterates a snapshot copy of <code>active_</code> so the original vector can be modified freely during cancellation.
+      </div>
+    </div>
+
+    <!-- ══ Cloud transfers window ══ -->
+    <div class="section" id="cloud-transfers">
+      <h2>Cloud transfers window</h2>
+      <p><code>CloudTransfersWindow</code> (<code>src/ui/CloudTransfersWindow.hpp</code>) shows server-side Premiumize transfers — torrents and URL/magnet downloads that Premiumize is processing for you, as opposed to local upload/download jobs managed by <code>TransferManager</code>.</p>
+
+      <h3>Polling</h3>
+      <p>A <code>QTimer</code> fires <code>PremiumizeApi::fetchTransferList()</code> every 5 seconds (<code>kPollIntervalMs</code>). The timer starts in <code>showEvent</code> and stops in <code>hideEvent</code>, so no requests are made while the window is hidden.</p>
+
+      <h3>Row lifecycle</h3>
+      <p>On each <code>transferListReady</code> signal the window rebuilds its row list from scratch. Each <code>TransferRow</code> tracks both its container widget and its preceding separator <code>QFrame</code>; both are deleted during cleanup. The separator is <em>not</em> a Qt child of the container — it must be deleted explicitly.</p>
+
+      <h3>Status colors</h3>
+      <table>
+        <thead><tr><th>Status</th><th>Color</th></tr></thead>
+        <tbody>
+          <tr><td><code>running</code>, <code>seeding</code></td><td><code>#4a9eff</code> (blue)</td></tr>
+          <tr><td><code>finished</code></td><td><code>#4caf50</code> (green)</td></tr>
+          <tr><td><code>error</code>, <code>deleted</code></td><td><code>#f44336</code> (red)</td></tr>
+          <tr><td><code>waiting</code>, other</td><td><code>#888888</code> (grey)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ══ Log window ══ -->
+    <div class="section" id="log-window">
+      <h2>API log window</h2>
+      <p><code>LogWindow</code> (<code>src/ui/LogWindow.hpp</code>) is a non-modal <code>Qt::Tool</code> window fed by the <code>PremiumizeApi::requestLogged</code> signal.</p>
+      <p>Each entry is a single timestamped line in the format:</p>
+      <pre>[HH:mm:ss.zzz] → GET https://www.premiumize.me/api/folder/list
+[HH:mm:ss.zzz] ← 200 (143ms) {"status":"success","content":[...]}
+[HH:mm:ss.zzz] ← ERR (50ms) Network timeout</pre>
+      <p>The log can be saved to a plain-text file via the <strong>Save to File…</strong> button, or cleared with <strong>Clear</strong>.</p>
+    </div>
+
+    <!-- ══ File panes ══ -->
+    <div class="section" id="panes">
+      <h2>File panes</h2>
+      <p>Both the local and cloud panes are instances of <code>FilePane</code> (<code>src/ui/FilePane.hpp</code>), distinguished by <code>PaneType::Local</code> and <code>PaneType::Cloud</code>.</p>
+
+      <h3>Local pane</h3>
+      <p>Backed by <code>QFileSystemModel</code> wrapped in <code>UpEntryProxyModel</code>, which injects the virtual <kbd>↑ Up</kbd> row. The proxy stores <code>viewRoot_</code> as a plain <code>QModelIndex</code> (not <code>QPersistentModelIndex</code>) because <code>endResetModel()</code> immediately invalidates persistent indices.</p>
+
+      <h3>Cloud pane</h3>
+      <p>Backed by <code>PremiumizeModel</code>, a flat <code>QAbstractListModel</code> showing one folder at a time. The <kbd>↑ Up</kbd> row is injected internally by the model and derived from <code>currentFolderId_</code> / <code>parentFolderId_</code> — there is no separate boolean flag that could drift out of sync.</p>
+
+      <div class="note">
+        <strong>Model index safety:</strong> <code>PremiumizeModel::itemAt(row)</code> asserts and throws on out-of-range access. All call sites in <code>FilePane</code> guard with <code>row &gt;= 0 &amp;&amp; row &lt; cloudModel_-&gt;rowCount()</code> before calling it — the model can be reset asynchronously by an in-flight <code>listFolder</code> reply.
+      </div>
+    </div>
+
+    <!-- ══ Drag and drop ══ -->
+    <div class="section" id="drag-drop">
+      <h2>Drag &amp; drop</h2>
+      <table>
+        <thead><tr><th>Direction</th><th>MIME type</th><th>Signal emitted</th></tr></thead>
+        <tbody>
+          <tr><td>Local → Cloud</td><td><code>text/uri-list</code></td><td><code>FilePane::uploadRequested(paths, folderId)</code></td></tr>
+          <tr><td>Cloud → Local</td><td><code>application/x-premiumize-items</code></td><td><code>FilePane::downloadRequested(url, dest, size, name)</code></td></tr>
+        </tbody>
+      </table>
+      <p>The <code>application/x-premiumize-items</code> payload is a JSON array of objects with keys <code>id</code>, <code>name</code>, <code>isFolder</code>, <code>link</code>, <code>size</code>.</p>
+      <div class="note">
+        <strong>DragOnly mode is critical.</strong> Both list views use <code>setDragDropMode(DragOnly)</code>, not <code>DragDrop</code>. With <code>DragDrop</code>, the viewport calls <code>setAcceptDrops(true)</code> and intercepts drops through the model's <code>canDropMimeData</code>/<code>dropMimeData</code> chain, which has no signal-emitting implementation. <code>DragOnly</code> keeps <code>acceptDrops</code> false on the viewport, so Qt delivers drop events directly to the <code>FilePane</code> parent widget.
+      </div>
+    </div>
+
+    <footer>
+      <p>
+        <a href="index.html">premiumize-explorer</a>
+        &nbsp;·&nbsp; MIT License
+        &nbsp;·&nbsp; <a href="https://github.com/Cracksoldier/premiumize-explorer">GitHub</a>
+        &nbsp;·&nbsp; <a href="https://www.premiumize.me/api">Premiumize.me API</a>
+      </p>
+    </footer>
+
+  </main>
+</div>
+
+</body>
+</html>
