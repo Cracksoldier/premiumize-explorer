@@ -18,6 +18,8 @@ public:
     void setApiKey(const QString& key);
     bool hasApiKey() const;
 
+    void log(const QString& entry) { emit requestLogged(entry); }
+
     void listFolder(const QString& folderId = {});
     void createFolder(const QString& name, const QString& parentId = {});
     void deleteItem(const QString& id, bool isFolder);
@@ -26,6 +28,7 @@ public:
                     const QStringList& folderIds);
     void requestUploadInfo(const QString& targetFolderId = {});
     void fetchAccountInfo();
+    void fetchTransferList();
 
     // Return raw replies — caller connects and deletes when done
     QNetworkReply* startDownload(const QString& url);
@@ -38,12 +41,15 @@ signals:
     void pasteFinished(bool success, QString errorMessage);
     void uploadInfoReady(api::UploadInfo info);
     void accountInfoReady(api::AccountInfo info);
+    void transferListReady(QList<api::CloudTransferEntry> entries);
     void networkError(QString message);
+    void requestLogged(QString entry);
 
 private:
     QNetworkRequest authorizedRequest(const QUrl& url) const;
     void handleJsonReply(QNetworkReply* reply,
-                         std::function<void(const QJsonObject&)> handler);
+                         std::function<void(const QJsonObject&)> handler,
+                         qint64 startMs = -1);
 
     QNetworkAccessManager nam_;
     QString               apiKey_;

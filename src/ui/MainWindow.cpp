@@ -1,5 +1,6 @@
 #include "MainWindow.hpp"
 #include "ApiKeyDialog.hpp"
+#include "CloudTransfersWindow.hpp"
 #include "CreateFolderDialog.hpp"
 #include "FilePane.hpp"
 #include "LogWindow.hpp"
@@ -36,9 +37,10 @@ MainWindow::MainWindow(QWidget* parent)
     api_            = new api::PremiumizeApi(this);
     api_->setApiKey(AppConfig::instance().apiKey());
 
-    transferManager_ = new TransferManager(api_, this);
-    progressWindow_  = new TransferProgressWindow(transferManager_, this);
-    logWindow_       = new LogWindow(this);
+    transferManager_      = new TransferManager(api_, this);
+    progressWindow_       = new TransferProgressWindow(transferManager_, this);
+    logWindow_            = new LogWindow(this);
+    cloudTransfersWindow_ = new CloudTransfersWindow(api_, this);
 
     setupLayout();
     setupMenuBar();
@@ -107,6 +109,10 @@ void MainWindow::setupMenuBar()
     auto* viewMenu = menuBar()->addMenu("&View");
     auto* showTransfersAct = viewMenu->addAction("&Transfers");
     connect(showTransfersAct, &QAction::triggered, this, &MainWindow::on_showTransfers_clicked);
+
+    auto* showCloudTransfersAct = viewMenu->addAction("&Cloud Transfers");
+    connect(showCloudTransfersAct, &QAction::triggered,
+            this, &MainWindow::on_showCloudTransfers_clicked);
 
     viewMenu->addSeparator();
 
@@ -247,6 +253,13 @@ void MainWindow::on_showApiLog_clicked()
     logWindow_->show();
     logWindow_->raise();
     logWindow_->activateWindow();
+}
+
+void MainWindow::on_showCloudTransfers_clicked()
+{
+    cloudTransfersWindow_->show();
+    cloudTransfersWindow_->raise();
+    cloudTransfersWindow_->activateWindow();
 }
 
 void MainWindow::on_accountInfoReady(const api::AccountInfo& info)

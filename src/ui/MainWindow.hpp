@@ -3,7 +3,9 @@
 
 #include <QMainWindow>
 
+class CloudTransfersWindow;
 class FilePane;
+class LogWindow;
 class TransferProgressWindow;
 class TransferManager;
 namespace api { class PremiumizeApi; }
@@ -25,6 +27,8 @@ private slots:
     void on_createFolderRequested(const QString& parentId);
     void on_cloudNavigateRequested(const QString& folderId);
     void on_showTransfers_clicked();
+    void on_showApiLog_clicked();
+    void on_showCloudTransfers_clicked();
     void on_accountInfoReady(const api::AccountInfo& info);
 
 private:
@@ -38,6 +42,8 @@ private:
     api::PremiumizeApi*     api_;
     TransferManager*        transferManager_;
     TransferProgressWindow* progressWindow_;
+    LogWindow*              logWindow_;
+    CloudTransfersWindow*   cloudTransfersWindow_{};
     FilePane*               localPane_;
     FilePane*               cloudPane_;
 };
