@@ -146,6 +146,15 @@
     }
     .note strong { color: var(--text); }
 
+    /* ── nav ── */
+    nav {
+      text-align: center;
+      padding: 0.6rem 0 0;
+      font-size: 0.9rem;
+    }
+    nav a { margin: 0 0.75rem; color: var(--muted); }
+    nav a:hover { color: var(--accent); }
+
     /* ── footer ── */
     footer {
       border-top: 1px solid var(--border);
@@ -167,6 +176,9 @@
     <h1>premiumize<span>-explorer</span></h1>
     <p>A two-pane desktop file browser for <a href="https://www.premiumize.me">Premiumize.me</a> cloud storage,<br>built with C++20 and Qt6.</p>
     <a class="btn" href="https://github.com/Cracksoldier/premiumize-explorer">View on GitHub</a>
+    <nav>
+      <a href="api.html">API &amp; Architecture docs</a>
+    </nav>
   </header>
 
   <!--
@@ -200,6 +212,14 @@
       <div class="feature-card">
         <strong>Cloud operations</strong>
         <span>Create folders, delete files or folders, and a right-click context menu.</span>
+      </div>
+      <div class="feature-card">
+        <strong>Cloud transfers monitor</strong>
+        <span>Live view of server-side Premiumize transfers (torrents, URL downloads) with status, progress, speed and ETA. Auto-refreshes every 5 s.</span>
+      </div>
+      <div class="feature-card">
+        <strong>API log window</strong>
+        <span>Timestamped log of every HTTP request and response with timing. Saveable to file.</span>
       </div>
       <div class="feature-card">
         <strong>Dark mode</strong>
@@ -257,8 +277,10 @@ cmake --build build/release --parallel</pre>
         <tr><td>Download a file</td><td>Drag from the cloud pane onto the local pane, or right-click → <strong>Download</strong></td></tr>
         <tr><td>Create a cloud folder</td><td>Click <strong>+ Folder</strong> in the cloud toolbar, or right-click → <strong>New Folder…</strong></td></tr>
         <tr><td>Delete a cloud item</td><td>Select it and click <strong>Delete</strong>, or right-click → <strong>Delete</strong></td></tr>
-        <tr><td>View transfer progress</td><td>Click <strong>Transfers ▼</strong> in the main toolbar</td></tr>
-        <tr><td>Refresh the cloud view</td><td>Click <strong>⟳</strong> in the cloud toolbar or <strong>⟳ Refresh</strong> in the main toolbar</td></tr>
+        <tr><td>View transfer progress</td><td><strong>View → Transfers</strong></td></tr>
+        <tr><td>View cloud transfers (server-side)</td><td><strong>View → Cloud Transfers</strong> — shows torrents and URL downloads Premiumize is processing for you</td></tr>
+        <tr><td>Refresh the cloud view</td><td>Click <strong>⟳</strong> in the cloud toolbar</td></tr>
+        <tr><td>View API log</td><td><strong>View → API Log</strong> — timestamped request/response log; use <strong>Save to File…</strong> to export</td></tr>
         <tr><td>Toggle dark mode</td><td><strong>View → Dark Mode</strong></td></tr>
       </tbody>
     </table>
@@ -270,6 +292,7 @@ cmake --build build/release --parallel</pre>
       <a href="https://github.com/Cracksoldier/premiumize-explorer">premiumize-explorer</a>
       &nbsp;·&nbsp; MIT License
       &nbsp;·&nbsp; Uses the <a href="https://www.premiumize.me/api">Premiumize.me REST API</a>
+      &nbsp;·&nbsp; <a href="api.html">Technical docs</a>
     </p>
   </footer>
 
