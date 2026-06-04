@@ -29,6 +29,7 @@ private slots:
     void on_showTransfers_clicked();
     void on_showApiLog_clicked();
     void on_showCloudTransfers_clicked();
+    void on_batchDownload_clicked();
     void on_accountInfoReady(const api::AccountInfo& info);
 
 private:

@@ -26,9 +26,6 @@ private slots:
     void on_clearFinished_clicked();
 
 private:
-    static QString formatBytes(qint64 bytes);
-    static QString formatDuration(qint64 ms);
-
     struct JobRow {
         int           jobId;
         QLabel*       nameLabel;
