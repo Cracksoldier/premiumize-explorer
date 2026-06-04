@@ -53,6 +53,7 @@ protected:
 private slots:
     void on_itemActivated(const QModelIndex& index);
     void on_upButton_clicked();
+    void on_createLocalFolder_clicked();
     void on_createFolder_clicked();
     void on_delete_clicked();
     void on_contextMenu(const QPoint& pos);

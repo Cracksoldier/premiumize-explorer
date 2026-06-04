@@ -11,6 +11,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListView>
@@ -114,6 +115,9 @@ void FilePane::setupLayout()
     if (type_ == PaneType::Local) {
         auto* upAct = toolbar->addAction("↑ Up");
         connect(upAct, &QAction::triggered, this, &FilePane::on_upButton_clicked);
+
+        auto* newFolderAct = toolbar->addAction("+ Folder");
+        connect(newFolderAct, &QAction::triggered, this, &FilePane::on_createLocalFolder_clicked);
     }
 
     vl->addWidget(toolbar);
@@ -215,6 +219,18 @@ void FilePane::on_upButton_clicked()
             emit navigateCloudRequested({});
         }
     }
+}
+
+void FilePane::on_createLocalFolder_clicked()
+{
+    if (currentLocalPath_.isEmpty()) return;
+    bool ok = false;
+    const QString name = QInputDialog::getText(
+        this, "New Folder", "Folder name:", QLineEdit::Normal, {}, &ok);
+    if (!ok || name.trimmed().isEmpty()) return;
+    if (!QDir(currentLocalPath_).mkdir(name.trimmed()))
+        QMessageBox::warning(this, "New Folder",
+            QStringLiteral("Could not create \"%1\".").arg(name.trimmed()));
 }
 
 void FilePane::on_createFolder_clicked()
