@@ -267,6 +267,42 @@ void PremiumizeApi::fetchTransferList()
     }, startMs);
 }
 
+void PremiumizeApi::searchItems(const QString& query)
+{
+    QUrl url(QStringLiteral("%1/item/search").arg(kBaseUrl));
+    QUrlQuery q;
+    q.addQueryItem("q", query);
+    url.setQuery(q);
+    const qint64 startMs = QDateTime::currentMSecsSinceEpoch();
+    emit requestLogged(ts() + QStringLiteral("→ GET %1").arg(url.toString()));
+    auto* reply = nam_.get(authorizedRequest(url));
+    handleJsonReply(reply, [this](const QJsonObject& obj) {
+        QList<FolderItem> results;
+        const auto content = obj.value("content").toArray();
+        for (const auto& val : content) {
+            const auto item = val.toObject();
+            if (item.value("type").toString() != QStringLiteral("file")) continue;
+            FolderItem fi;
+            fi.id   = item.value("id").toString();
+            fi.name = item.value("name").toString();
+            fi.type = ItemType::File;
+            const auto createdRaw = item.value("created_at");
+            if (!createdRaw.isNull())
+                fi.createdAt = QDateTime::fromSecsSinceEpoch(
+                    static_cast<qint64>(createdRaw.toDouble()));
+            const auto sizeVal = item.value("size");
+            if (!sizeVal.isNull() && sizeVal.isDouble())
+                fi.size = static_cast<qint64>(sizeVal.toDouble());
+            const auto mimeVal = item.value("mime_type");
+            if (mimeVal.isString()) fi.mimeType = mimeVal.toString();
+            const auto linkVal = item.value("link");
+            if (linkVal.isString()) fi.link = linkVal.toString();
+            results.append(std::move(fi));
+        }
+        emit searchResultsReady(std::move(results));
+    }, startMs);
+}
+
 QNetworkReply* PremiumizeApi::startDownload(const QString& url)
 {
     emit requestLogged(ts() + QStringLiteral("→ GET %1").arg(url));

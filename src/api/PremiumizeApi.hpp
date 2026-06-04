@@ -29,6 +29,7 @@ public:
     void requestUploadInfo(const QString& targetFolderId = {});
     void fetchAccountInfo();
     void fetchTransferList();
+    void searchItems(const QString& query);
 
     // Return raw replies — caller connects and deletes when done
     QNetworkReply* startDownload(const QString& url);
@@ -42,6 +43,7 @@ signals:
     void uploadInfoReady(api::UploadInfo info);
     void accountInfoReady(api::AccountInfo info);
     void transferListReady(QList<api::CloudTransferEntry> entries);
+    void searchResultsReady(QList<api::FolderItem> items);
     void networkError(QString message);
     void requestLogged(QString entry);
 

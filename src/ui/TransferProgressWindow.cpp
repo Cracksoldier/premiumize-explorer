@@ -1,4 +1,5 @@
 #include "TransferProgressWindow.hpp"
+#include "FormatHelpers.hpp"
 #include "transfer/TransferManager.hpp"
 
 #include <algorithm>
@@ -110,11 +111,11 @@ void TransferProgressWindow::on_jobProgress(int id, qint64 bytes, qint64 total,
     }
 
     row->statsLabel->setText(QStringLiteral("%1 / %2 — %3/s — ETA %4")
-                                 .arg(formatBytes(bytes),
-                                      formatBytes(total),
-                                      formatBytes(static_cast<qint64>(bytesPerSec)),
-                                      formatDuration(etaMs)));
-    row->elapsedLabel->setText(QStringLiteral("Elapsed: %1").arg(formatDuration(elapsedMs)));
+                                 .arg(ui::formatBytes(bytes),
+                                      ui::formatBytes(total),
+                                      ui::formatBytes(static_cast<qint64>(bytesPerSec)),
+                                      ui::formatDuration(etaMs)));
+    row->elapsedLabel->setText(QStringLiteral("Elapsed: %1").arg(ui::formatDuration(elapsedMs)));
 }
 
 void TransferProgressWindow::on_jobFinished(int id, bool success, const QString& error)
@@ -124,7 +125,7 @@ void TransferProgressWindow::on_jobFinished(int id, bool success, const QString&
 
     if (success) {
         row->progressBar->setValue(row->progressBar->maximum());
-        const QString sizeStr = row->totalBytes > 0 ? formatBytes(row->totalBytes) : QString{};
+        const QString sizeStr = row->totalBytes > 0 ? ui::formatBytes(row->totalBytes) : QString{};
         row->statsLabel->setText(sizeStr.isEmpty()
                                      ? QStringLiteral("Done")
                                      : QStringLiteral("Done · %1").arg(sizeStr));
@@ -188,23 +189,4 @@ TransferProgressWindow::JobRow* TransferProgressWindow::findRow(int jobId)
         if (r.jobId == jobId) return &r;
     }
     return nullptr;
-}
-
-QString TransferProgressWindow::formatBytes(qint64 bytes)
-{
-    if (bytes < 0)        return "?";
-    if (bytes < 1024)     return QStringLiteral("%1 B").arg(bytes);
-    if (bytes < 1 << 20)  return QStringLiteral("%1 KB").arg(bytes / 1024);
-    if (bytes < 1 << 30)  return QStringLiteral("%1 MB").arg(bytes / (1 << 20));
-    return QStringLiteral("%.1f GB").arg(static_cast<double>(bytes) / (1 << 30));
-}
-
-QString TransferProgressWindow::formatDuration(qint64 ms)
-{
-    if (ms < 0) return "?";
-    const auto s   = ms / 1000;
-    const auto min = s / 60;
-    const auto sec = s % 60;
-    if (min > 0) return QStringLiteral("%1m %2s").arg(min).arg(sec);
-    return QStringLiteral("%1s").arg(sec);
 }

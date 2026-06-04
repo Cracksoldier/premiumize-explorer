@@ -4,6 +4,7 @@
 #include "CreateFolderDialog.hpp"
 #include "FilePane.hpp"
 #include "LogWindow.hpp"
+#include "BatchDownloadWizard.hpp"
 #include "TransferProgressWindow.hpp"
 #include "api/PremiumizeApi.hpp"
 #include "config/AppConfig.hpp"
@@ -99,6 +100,11 @@ void MainWindow::setupMenuBar()
             loadCloudRoot();
         }
     });
+
+    auto* batchDownloadAct = fileMenu->addAction("Batch Download…");
+    batchDownloadAct->setShortcut(QKeySequence("Ctrl+Shift+D"));
+    connect(batchDownloadAct, &QAction::triggered,
+            this, &MainWindow::on_batchDownload_clicked);
 
     fileMenu->addSeparator();
 
@@ -260,6 +266,13 @@ void MainWindow::on_showCloudTransfers_clicked()
     cloudTransfersWindow_->show();
     cloudTransfersWindow_->raise();
     cloudTransfersWindow_->activateWindow();
+}
+
+void MainWindow::on_batchDownload_clicked()
+{
+    BatchDownloadWizard wizard(api_, transferManager_,
+                                localPane_->currentLocalPath(), this);
+    wizard.exec();
 }
 
 void MainWindow::on_accountInfoReady(const api::AccountInfo& info)
