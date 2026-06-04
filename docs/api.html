@@ -449,6 +449,7 @@ PremiumizeApi::transferListReady ──▶ CloudTransfersWindow (polled every 5 
           <tr><td><code>size</code></td><td><code>optional&lt;qint64&gt;</code></td><td>Bytes; absent for folders</td></tr>
           <tr><td><code>mimeType</code></td><td><code>optional&lt;QString&gt;</code></td><td>MIME type; absent for folders</td></tr>
           <tr><td><code>link</code></td><td><code>optional&lt;QString&gt;</code></td><td>Direct download URL; absent for folders</td></tr>
+          <tr><td><code>parentId</code></td><td><code>optional&lt;QString&gt;</code></td><td>Parent folder ID; populated by <code>searchItems</code> only — not set by <code>listFolder</code></td></tr>
         </tbody>
       </table>
 
@@ -658,6 +659,40 @@ QNetworkReply* fetchUploadInfo(const QString&amp; targetFolderId = {});</pre>
         </div>
       </div>
 
+      <!-- folder/list (name-only) -->
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="endpoint-path">/folder/list &nbsp;(name resolution)</span>
+        </div>
+        <div class="endpoint-body">
+          <p>Resolve a folder's display name without showing its contents. The full <code>content</code> array in the response is discarded — only the top-level <code>name</code> field is read. Used by <code>BatchDownloadWizard::SearchPage</code> to append <code>[FolderName]</code> to search results.</p>
+          <pre>void resolveFolderName(const QString&amp; folderId);</pre>
+          <p><strong>Emits:</strong> <code>folderNameResolved(folderId, folderName)</code></p>
+          <div class="note"><strong>No lighter endpoint exists.</strong> Premiumize has no metadata-only endpoint; <code>/folder/list</code> is the closest option.</div>
+        </div>
+      </div>
+
+      <!-- folder/download -->
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="endpoint-path">/folder/download</span>
+        </div>
+        <div class="endpoint-body">
+          <p>Fetch a pre-signed ZIP download URL for an entire cloud folder. Used by the cloud pane's context menu "Download" action for folder items that do not already have a <code>link</code> in the listing.</p>
+          <pre>void fetchFolderDownloadLink(const QString&amp; folderId);</pre>
+          <table>
+            <thead><tr><th>Parameter</th><th>Where</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td><code>id</code></td><td>Query string</td><td>Folder ID</td></tr>
+            </tbody>
+          </table>
+          <p><strong>Emits:</strong> <code>folderDownloadLinkReady(folderId, url)</code> — always, on both success and failure. <code>url</code> is empty on error.</p>
+          <div class="note"><strong>Own handler, not <code>handleJsonReply</code>.</strong> <code>fetchFolderDownloadLink</code> wires <code>QNetworkReply::finished</code> directly so it can emit <code>folderDownloadLinkReady</code> on the error path too — letting <code>MainWindow</code> always clean up its <code>pendingFolderDownloads_</code> map entry. It additionally emits <code>networkError</code> on failure. The response field for the URL is <code>"location"</code>.</div>
+        </div>
+      </div>
+
       <!-- startDownload (raw) -->
       <div class="endpoint">
         <div class="endpoint-header">
@@ -718,6 +753,16 @@ QNetworkReply* fetchUploadInfo(const QString&amp; targetFolderId = {});</pre>
         </div>
         <div class="signal-row">
           <span class="sig-badge">SIGNAL</span>
+          <span class="sig-name">folderNameResolved(QString folderId, QString folderName)</span>
+          <span class="sig-desc">— display name for a folder ID; emitted by <code>resolveFolderName</code>, consumed by <code>BatchDownloadWizard::SearchPage</code></span>
+        </div>
+        <div class="signal-row">
+          <span class="sig-badge">SIGNAL</span>
+          <span class="sig-name">folderDownloadLinkReady(QString folderId, QString url)</span>
+          <span class="sig-desc">— pre-signed ZIP URL for a folder; always emitted (empty url on error); consumed by <code>MainWindow::pendingFolderDownloads_</code></span>
+        </div>
+        <div class="signal-row">
+          <span class="sig-badge">SIGNAL</span>
           <span class="sig-name">networkError(QString)</span>
           <span class="sig-desc">— emitted for any non-success response or network failure</span>
         </div>
@@ -728,7 +773,8 @@ QNetworkReply* fetchUploadInfo(const QString&amp; targetFolderId = {});</pre>
         </div>
       </div>
       <div class="note" style="margin-top:0.9rem">
-        <strong>handleJsonReply</strong> is a private helper that wires <code>QNetworkReply::finished</code>, reads the body, checks <code>status == "success"</code>, and invokes a handler lambda. It also emits <code>requestLogged</code> with the HTTP status code, latency, and truncated body. Most endpoints use it; <code>deleteItem</code> uses its own handler to avoid emitting <code>networkError</code> on failure (which would cause a double response).
+        <strong>handleJsonReply</strong> is a private helper that wires <code>QNetworkReply::finished</code>, reads the body, checks <code>status == "success"</code>, and invokes a handler lambda on success only — it never calls the lambda on error. It also emits <code>requestLogged</code> with HTTP status, latency, and a truncated body.<br><br>
+        Two endpoints use their own handlers instead: <strong><code>deleteItem</code></strong> avoids double-emitting <code>networkError</code> (its own handler emits <code>deleteFinished(false, …)</code> on error without also calling <code>networkError</code>). <strong><code>fetchFolderDownloadLink</code></strong> must always emit <code>folderDownloadLinkReady</code> — including on failure — so its caller can clean up the pending-requests map; it also emits <code>networkError</code> on error.
       </div>
     </div>
 
@@ -866,6 +912,18 @@ void cancelJob(int jobId);   // cancel one specific job only</pre>
 
       <h3>Cloud pane</h3>
       <p>Backed by <code>PremiumizeModel</code>, a flat <code>QAbstractListModel</code> showing one folder at a time. The <kbd>↑ Up</kbd> row is injected internally by the model and derived from <code>currentFolderId_</code> / <code>parentFolderId_</code> — there is no separate boolean flag that could drift out of sync.</p>
+
+      <h3>Context menu download (cloud pane)</h3>
+      <p>The "Download" action supports multi-selection. At menu-build time the target list is computed: if the right-clicked item is in the current selection, the full selection is used; otherwise only the right-clicked item is targeted. The action is only added to the menu when at least one target has a <code>link</code> or is a folder.</p>
+      <table>
+        <thead><tr><th>Target type</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td>File with <code>link</code></td><td>Emits <code>downloadRequested</code> immediately</td></tr>
+          <tr><td>Folder with <code>link</code></td><td>Emits <code>downloadRequested</code> with <code>.zip</code> suffix</td></tr>
+          <tr><td>Folder without <code>link</code></td><td>Emits <code>folderDownloadRequested</code>; <code>MainWindow</code> calls <code>fetchFolderDownloadLink</code> and enqueues the transfer when <code>folderDownloadLinkReady</code> fires</td></tr>
+          <tr><td>File without <code>link</code></td><td>Silently skipped; menu item hidden if all targets are linkless non-folders</td></tr>
+        </tbody>
+      </table>
 
       <div class="note">
         <strong>Model index safety:</strong> <code>PremiumizeModel::itemAt(row)</code> asserts and throws on out-of-range access. All call sites in <code>FilePane</code> guard with <code>row &gt;= 0 &amp;&amp; row &lt; cloudModel_-&gt;rowCount()</code> before calling it — the model can be reset asynchronously by an in-flight <code>listFolder</code> reply.

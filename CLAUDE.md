@@ -48,7 +48,7 @@ TransferProgressWindow  (non-modal Qt::Tool window)
 | `AppConfig` | `src/config/AppConfig.hpp` | Singleton QSettings facade. Writes to `~/.config/premiumize-explorer/premiumize-explorer.ini`. |
 | `PremiumizeModel` | `src/model/PremiumizeModel.hpp` | `QAbstractListModel` for the cloud pane (flat list, one folder at a time). Injects a virtual "↑ Up" row at position 0 when not at root; `showUpEntry()` (private) derives visibility from `currentFolderId_` / `parentFolderId_` — no separate stored flag. Use `isUpEntry(row)` and `itemAtViewRow(row)` (returns nullptr for the up row or OOB) at every call site. Emits `application/x-premiumize-items` MIME for drag-and-drop. |
 | `UpEntryProxyModel` | `src/model/UpEntryProxyModel.hpp` | `QIdentityProxyModel` wrapping `QFileSystemModel` for the local pane. Inserts a virtual "↑ Up" row at position 0 when not at root. A heap-allocated `QObject* sentinel_` is used as `internalPointer` to identify the virtual row. `viewRoot_` is a plain `QModelIndex` (not `QPersistentModelIndex`) — `endResetModel()` invalidates persistent indices. Not used for the cloud pane. |
-| `FilePane` | `src/ui/FilePane.hpp` | Reusable widget used for both panes. `PaneType::Local` wraps `QFileSystemModel` via `UpEntryProxyModel`; `PaneType::Cloud` drives `PremiumizeModel`. The cloud pane's download destination is kept in sync with the local pane via `setDownloadPath()`, called by `MainWindow` on every `localPathChanged`. Handles all drag/drop events and emits typed signals upward. |
+| `FilePane` | `src/ui/FilePane.hpp` | Reusable widget used for both panes. `PaneType::Local` wraps `QFileSystemModel` via `UpEntryProxyModel`; `PaneType::Cloud` drives `PremiumizeModel`. The cloud pane's download destination is kept in sync with the local pane via `setDownloadPath()`, called by `MainWindow` on every `localPathChanged`. Handles all drag/drop events and emits typed signals upward. Context menu "Download" targets the right-clicked item when it is not in the selection, otherwise targets the full selection; the action is only shown when at least one target has a link or is a folder. |
 | `TransferManager` | `src/transfer/TransferManager.hpp` | Job queue, max 2 concurrent. `queue_` and `active_` store `pair<int, …>` so job IDs are preserved through `dispatchNext()`. `cancelJob(int)` cancels a single job without disturbing unrelated transfers; `cancelAll()` cancels everything. Never use `QObject::sender()` in `onJobFinished` — pass job pointers explicitly. Emits `uploadFinished(folderId, success, error)` per upload so `MainWindow` can auto-refresh the cloud pane. |
 | `UploadJob` | `src/transfer/UploadJob.hpp` | Two-step upload: fetches token/URL via `PremiumizeApi::fetchUploadInfo()` (private reply), then POSTs a manually constructed `QByteArray` multipart body. Uses its own `QNetworkAccessManager` with `Http2AllowedAttribute=false`. |
 | `DownloadJob` | `src/transfer/DownloadJob.hpp` | Streams `QNetworkReply` bytes directly to a `QFile`. Reply comes from `PremiumizeApi::startDownload`. |
@@ -56,7 +56,7 @@ TransferProgressWindow  (non-modal Qt::Tool window)
 | `CloudTransfersWindow` | `src/ui/CloudTransfersWindow.hpp` | Non-modal `Qt::Tool` window showing Premiumize server-side transfers (`GET /transfer/list`). Displays name, status badge, progress bar, speed, and ETA. Polls every 5 s while visible; stops polling when hidden. Opened via **View → Cloud Transfers**. |
 | `BatchDownloadWizard` | `src/ui/BatchDownloadWizard.hpp` | Modal `QWizard` with three pages: `SearchPage` (keyword search via `GET /api/folder/search` → checkbox list), `DestinationPage` (local path picker), `ProgressPage` (dual progress bars + timer + scrollable per-file status list). Downloads files sequentially via `TransferManager`. Opened via **File → Batch Download… (Ctrl+Shift+D)**. |
 | `FormatHelpers` | `src/ui/FormatHelpers.hpp` | Shared inline helpers `ui::formatBytes(qint64)` and `ui::formatDuration(qint64 ms)` used by `TransferProgressWindow`, `CloudTransfersWindow`, and `BatchDownloadWizard`. |
-| `MainWindow` | `src/ui/MainWindow.hpp` | Wires everything together. Owns all subsystem instances. Connects `PremiumizeApi` signals to pane updates and `FilePane` signals to API calls / transfer enqueuing. |
+| `MainWindow` | `src/ui/MainWindow.hpp` | Wires everything together. Owns all subsystem instances. Connects `PremiumizeApi` signals to pane updates and `FilePane` signals to API calls / transfer enqueuing. `pendingFolderDownloads_` (`QHash<QString, QPair<QString,QString>>`) tracks in-flight `fetchFolderDownloadLink` requests keyed by folder ID; duplicate in-flight requests for the same folder are deduplicated at the enqueue site. |
 
 ### Upload flow (two-step API requirement)
 
@@ -85,9 +85,11 @@ The `QListView` in each pane uses `DragOnly` mode (`setDragDropMode(DragOnly)`),
 
 `PremiumizeModel::itemAt(row)` uses `Q_ASSERT` + `std::vector::at()` (throws `std::out_of_range` on bad access). All call sites in `FilePane` guard with an explicit row-range check before calling `itemAt`. When adding new call sites, always check `row >= 0 && row < cloudModel_->rowCount()` first — the model can be reset asynchronously by an in-flight `listFolder` reply.
 
-### deleteItem signal contract
+### deleteItem / fetchFolderDownloadLink signal contracts
 
 `PremiumizeApi::deleteItem` uses a **single** `QNetworkReply::finished` handler that emits either `deleteFinished(true)` on success or `deleteFinished(false, error)` on failure. It does **not** call `handleJsonReply` (which would also emit `networkError`, causing a double response). Do not add a second `connect` to a reply that already has one — both handlers fire on the same signal emission.
+
+`PremiumizeApi::fetchFolderDownloadLink` similarly uses its own handler instead of `handleJsonReply`, for a different reason: it must emit `folderDownloadLinkReady(folderId, url)` on **both** success and failure paths (empty url on error), so `MainWindow` can always clean up `pendingFolderDownloads_`. On the error path it additionally emits `networkError`. This paired success/failure emission pattern mirrors `deleteFinished`.
 
 ### "↑ Up" virtual row
 
