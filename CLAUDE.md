@@ -54,7 +54,7 @@ TransferProgressWindow  (non-modal Qt::Tool window)
 | `DownloadJob` | `src/transfer/DownloadJob.hpp` | Streams `QNetworkReply` bytes directly to a `QFile`. Reply comes from `PremiumizeApi::startDownload`. |
 | `LogWindow` | `src/ui/LogWindow.hpp` | Non-modal `Qt::Tool` window showing a timestamped log of all API requests and responses. Opened via **View → API Log**. "Save to File…" and "Clear" buttons. Fed by `PremiumizeApi::requestLogged` signal. |
 | `CloudTransfersWindow` | `src/ui/CloudTransfersWindow.hpp` | Non-modal `Qt::Tool` window showing Premiumize server-side transfers (`GET /transfer/list`). Displays name, status badge, progress bar, speed, and ETA. Polls every 5 s while visible; stops polling when hidden. Opened via **View → Cloud Transfers**. |
-| `BatchDownloadWizard` | `src/ui/BatchDownloadWizard.hpp` | Modal `QWizard` with three pages: `SearchPage` (keyword search → checkbox list), `DestinationPage` (local path picker), `ProgressPage` (dual progress bars + timer). Downloads files sequentially via `TransferManager`. Opened via **File → Batch Download… (Ctrl+Shift+D)**. |
+| `BatchDownloadWizard` | `src/ui/BatchDownloadWizard.hpp` | Modal `QWizard` with three pages: `SearchPage` (keyword search via `GET /api/folder/search` → checkbox list), `DestinationPage` (local path picker), `ProgressPage` (dual progress bars + timer). Downloads files sequentially via `TransferManager`. Opened via **File → Batch Download… (Ctrl+Shift+D)**. |
 | `FormatHelpers` | `src/ui/FormatHelpers.hpp` | Shared inline helpers `ui::formatBytes(qint64)` and `ui::formatDuration(qint64 ms)` used by `TransferProgressWindow`, `CloudTransfersWindow`, and `BatchDownloadWizard`. |
 | `MainWindow` | `src/ui/MainWindow.hpp` | Wires everything together. Owns all subsystem instances. Connects `PremiumizeApi` signals to pane updates and `FilePane` signals to API calls / transfer enqueuing. |
 
@@ -102,7 +102,7 @@ Always call `isUpEntry` before accessing item data. Never store row offsets acro
 
 `BatchDownloadWizard` (`src/ui/BatchDownloadWizard.hpp`) is a modal `QWizard` that downloads multiple cloud files sequentially:
 
-1. **SearchPage** — calls `api_->searchItems(query)` (`GET /api/item/search?q=`), shows results as a checkbox list filtered to files with a valid `link`. Items without a link are silently skipped.
+1. **SearchPage** — calls `api_->searchItems(query)` (`GET /api/folder/search?q=`), shows results as a checkbox list filtered to files with a valid `link`. Items without a link are silently skipped.
 2. **DestinationPage** — picks a writable local directory. `initializePage()` reads the file list from `SearchPage` for the summary label.
 3. **ProgressPage** — `initializePage()` calls `startNextFile()` which enqueues one download at a time via `TransferManager::enqueueDownload`. The wizard tracks the active job ID in `currentJobId_` so progress signals from unrelated jobs are ignored.
 
