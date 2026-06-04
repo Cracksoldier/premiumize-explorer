@@ -673,19 +673,19 @@ QNetworkReply* fetchUploadInfo(const QString&amp; targetFolderId = {});</pre>
         </div>
       </div>
 
-      <!-- folder/download -->
+      <!-- zip/generate -->
       <div class="endpoint">
         <div class="endpoint-header">
-          <span class="method get">GET</span>
-          <span class="endpoint-path">/folder/download</span>
+          <span class="method post">POST</span>
+          <span class="endpoint-path">/zip/generate</span>
         </div>
         <div class="endpoint-body">
-          <p>Fetch a pre-signed ZIP download URL for an entire cloud folder. Used by the cloud pane's context menu "Download" action for folder items that do not already have a <code>link</code> in the listing.</p>
+          <p>Generate a ZIP archive for one or more cloud folders and return a pre-signed download URL. Used by the cloud pane's context menu "Download" action for folder items that do not already have a <code>link</code> in the listing.</p>
           <pre>void fetchFolderDownloadLink(const QString&amp; folderId);</pre>
           <table>
             <thead><tr><th>Parameter</th><th>Where</th><th>Notes</th></tr></thead>
             <tbody>
-              <tr><td><code>id</code></td><td>Query string</td><td>Folder ID</td></tr>
+              <tr><td><code>folders[]</code></td><td>Form body</td><td>Folder ID to include in the ZIP</td></tr>
             </tbody>
           </table>
           <p><strong>Emits:</strong> <code>folderDownloadLinkReady(folderId, url)</code> — always, on both success and failure. <code>url</code> is empty on error.</p>
@@ -909,6 +909,7 @@ void cancelJob(int jobId);   // cancel one specific job only</pre>
 
       <h3>Local pane</h3>
       <p>Backed by <code>QFileSystemModel</code> wrapped in <code>UpEntryProxyModel</code>, which injects the virtual <kbd>↑ Up</kbd> row. The proxy stores <code>viewRoot_</code> as a plain <code>QModelIndex</code> (not <code>QPersistentModelIndex</code>) because <code>endResetModel()</code> immediately invalidates persistent indices.</p>
+      <p>The toolbar includes a <strong>+ Folder</strong> button and the context menu exposes <strong>New Folder…</strong>; both invoke <code>on_createLocalFolder_clicked()</code>, which opens <code>CreateFolderDialog</code> and calls <code>QDir::mkdir</code>. The name is validated against embedded path separators via <code>QFileInfo::fileName()</code> before the call. <code>QFileSystemModel</code> watches the filesystem and updates the view automatically — no explicit refresh is needed.</p>
 
       <h3>Cloud pane</h3>
       <p>Backed by <code>PremiumizeModel</code>, a flat <code>QAbstractListModel</code> showing one folder at a time. The <kbd>↑ Up</kbd> row is injected internally by the model and derived from <code>currentFolderId_</code> / <code>parentFolderId_</code> — there is no separate boolean flag that could drift out of sync.</p>
