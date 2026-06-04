@@ -151,13 +151,11 @@ void SearchPage::on_searchResultsReady(const QList<api::FolderItem>& items)
     resultsList_->blockSignals(false);
 
     resolveGen_ = generation_;
-    pendingResolutions_ = 0;
     QSet<QString> seen;
     for (const auto& item : currentResults_) {
         if (item.parentId.has_value() && !item.parentId->isEmpty()
                 && !seen.contains(*item.parentId)) {
             seen.insert(*item.parentId);
-            ++pendingResolutions_;
             api_->resolveFolderName(*item.parentId);
         }
     }
@@ -174,35 +172,32 @@ void SearchPage::on_searchResultsReady(const QList<api::FolderItem>& items)
 
 void SearchPage::on_networkError(const QString& message)
 {
-    if (searching_) {
-        searching_ = false;
-        searchBtn_->setEnabled(!queryEdit_->text().trimmed().isEmpty());
-        statusLabel_->setText(QStringLiteral("Search failed: %1").arg(message));
-        return;
-    }
-    if (resolveGen_ != generation_) return;
-    if (pendingResolutions_ > 0) {
-        --pendingResolutions_;
-        if (!hasChecked_)
-            statusLabel_->setText(
-                QStringLiteral("%1 file(s) found — some folder names unavailable")
-                    .arg(currentResults_.size()));
-    }
+    if (!searching_) return;
+    searching_ = false;
+    searchBtn_->setEnabled(!queryEdit_->text().trimmed().isEmpty());
+    statusLabel_->setText(QStringLiteral("Search failed: %1").arg(message));
 }
 
 void SearchPage::on_folderNameResolved(const QString& id, const QString& name)
 {
     if (resolveGen_ != generation_) return;
-    if (pendingResolutions_ > 0) --pendingResolutions_;
 
-    const QString displayName = name.isEmpty() ? QStringLiteral("/") : name;
+    if (name.isEmpty()) {
+        if (!hasChecked_)
+            statusLabel_->setText(
+                QStringLiteral("%1 file(s) found — some folder names unavailable")
+                    .arg(currentResults_.size()));
+        return;
+    }
 
+    resultsList_->blockSignals(true);
     for (int i = 0; i < currentResults_.size() && i < resultsList_->count(); ++i) {
         const auto& item = currentResults_[i];
         if (item.parentId.has_value() && *item.parentId == id)
             resultsList_->item(i)->setText(
-                item.name + itemSizeStr(item) + QStringLiteral("  [%1]").arg(displayName));
+                item.name + itemSizeStr(item) + QStringLiteral("  [%1]").arg(name));
     }
+    resultsList_->blockSignals(false);
 }
 
 void SearchPage::on_selectionChanged()

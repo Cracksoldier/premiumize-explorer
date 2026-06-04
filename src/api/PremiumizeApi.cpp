@@ -57,7 +57,7 @@ void PremiumizeApi::handleJsonReply(QNetworkReply* reply,
             emit requestLogged(ts() + QStringLiteral("← %1 (%2ms) %3")
                 .arg(reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt())
                 .arg(QDateTime::currentMSecsSinceEpoch() - startMs)
-                .arg(QString::fromUtf8(raw.left(200))));
+                .arg(QString::fromUtf8(raw).left(200)));
         }
         if (!doc.isObject()) {
             emit networkError(QStringLiteral("Invalid JSON response"));
@@ -171,7 +171,7 @@ void PremiumizeApi::deleteItem(const QString& id, bool isFolder)
         emit requestLogged(ts() + QStringLiteral("← %1 (%2ms) %3")
             .arg(reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt())
             .arg(ms)
-            .arg(QString::fromUtf8(raw.left(200))));
+            .arg(QString::fromUtf8(raw).left(200)));
         if (obj.value("status").toString() != QStringLiteral("success")) {
             emit deleteFinished(false, obj.value("message").toString("Delete failed"));
             return;
@@ -307,8 +307,9 @@ void PremiumizeApi::searchItems(const QString& query)
 
 void PremiumizeApi::resolveFolderName(const QString& folderId)
 {
-    // Uses /folder/list because there is no lighter Premiumize endpoint that
-    // returns only folder metadata. The content array in the response is ignored.
+    // Uses /folder/list — no lighter endpoint returns only folder metadata.
+    // Always emits folderNameResolved (empty name on error) so callers can
+    // handle both success and failure without relying on the broadcast networkError.
     QUrl url(QStringLiteral("%1/folder/list").arg(kBaseUrl));
     QUrlQuery q;
     q.addQueryItem("id", folderId);
@@ -316,9 +317,30 @@ void PremiumizeApi::resolveFolderName(const QString& folderId)
     const qint64 startMs = QDateTime::currentMSecsSinceEpoch();
     emit requestLogged(ts() + QStringLiteral("→ GET %1").arg(url.toString()));
     auto* reply = nam_.get(authorizedRequest(url));
-    handleJsonReply(reply, [this, folderId](const QJsonObject& obj) {
+    connect(reply, &QNetworkReply::finished, this, [this, reply, folderId, startMs]() {
+        reply->deleteLater();
+        const qint64 ms = QDateTime::currentMSecsSinceEpoch() - startMs;
+        if (reply->error() != QNetworkReply::NoError) {
+            emit requestLogged(ts() + QStringLiteral("← ERR (%1ms) %2")
+                .arg(ms).arg(reply->errorString()));
+            emit networkError(reply->errorString());
+            emit folderNameResolved(folderId, {});
+            return;
+        }
+        const auto raw = reply->readAll();
+        const auto doc = QJsonDocument::fromJson(raw);
+        emit requestLogged(ts() + QStringLiteral("← %1 (%2ms) %3")
+            .arg(reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt())
+            .arg(ms)
+            .arg(QString::fromUtf8(raw).left(200)));
+        const auto obj = doc.isObject() ? doc.object() : QJsonObject{};
+        if (obj.value("status").toString() != QStringLiteral("success")) {
+            emit networkError(obj.value("message").toString("Unknown error"));
+            emit folderNameResolved(folderId, {});
+            return;
+        }
         emit folderNameResolved(folderId, obj.value("name").toString());
-    }, startMs);
+    });
 }
 
 void PremiumizeApi::fetchFolderDownloadLink(const QString& folderId)
@@ -345,7 +367,7 @@ void PremiumizeApi::fetchFolderDownloadLink(const QString& folderId)
         emit requestLogged(ts() + QStringLiteral("← %1 (%2ms) %3")
             .arg(reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt())
             .arg(ms)
-            .arg(QString::fromUtf8(raw.left(200))));
+            .arg(QString::fromUtf8(raw).left(200)));
         const auto obj = doc.isObject() ? doc.object() : QJsonObject{};
         if (obj.value("status").toString() != QStringLiteral("success")) {
             emit networkError(obj.value("message").toString("Unknown error"));

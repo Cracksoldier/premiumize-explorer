@@ -169,6 +169,7 @@ void FilePane::setCloudListing(const QString& folderId,
                                 const QString& folderName,
                                 const QString& parentId)
 {
+    if (filterEdit_) filterEdit_->clear();
     currentCloudId_     = folderId;
     currentCloudParent_ = parentId;
     currentCloudName_   = folderName.isEmpty()
@@ -253,31 +254,28 @@ void FilePane::on_contextMenu(const QPoint& pos)
                     ? view_->selectionModel()->selectedIndexes()
                     : QList<QModelIndex>{idx};
 
-                bool hasDownloadable = false;
+                // Snapshot item values now — immune to model reset before user clicks.
+                QList<api::FolderItem> downloadTargets;
                 for (const auto& si : targets) {
                     if (cloudFilterProxy_->isUpEntryAt(si)) continue;
                     const auto* f = cloudFilterProxy_->itemAt(si);
-                    if (f && ((f->link.has_value() && !f->link->isEmpty()) || f->isFolder())) {
-                        hasDownloadable = true;
-                        break;
-                    }
+                    if (!f) continue;
+                    if ((f->link.has_value() && !f->link->isEmpty()) || f->isFolder())
+                        downloadTargets.append(*f);
                 }
-                if (hasDownloadable) {
+                if (!downloadTargets.isEmpty()) {
                     auto* dlAct = menu.addAction("Download");
-                    connect(dlAct, &QAction::triggered, this, [this, targets]() {
-                        for (const QModelIndex& si : targets) {
-                            if (cloudFilterProxy_->isUpEntryAt(si)) continue;
-                            const auto* f = cloudFilterProxy_->itemAt(si);
-                            if (!f) continue;
-                            if (f->link.has_value() && !f->link->isEmpty()) {
-                                const bool    isDir = f->isFolder();
-                                const QString name  = f->name + (isDir ? ".zip" : "");
-                                emit downloadRequested(*f->link,
+                    connect(dlAct, &QAction::triggered, this, [this, downloadTargets]() {
+                        for (const api::FolderItem& f : downloadTargets) {
+                            if (f.link.has_value() && !f.link->isEmpty()) {
+                                const bool    isDir = f.isFolder();
+                                const QString name  = f.name + (isDir ? ".zip" : "");
+                                emit downloadRequested(*f.link,
                                                        currentLocalPath_ + "/" + name,
-                                                       f->size.value_or(-1), name);
-                            } else if (f->isFolder()) {
-                                const QString zipName = f->name + ".zip";
-                                emit folderDownloadRequested(f->id, zipName,
+                                                       f.size.value_or(-1), name);
+                            } else if (f.isFolder()) {
+                                const QString zipName = f.name + ".zip";
+                                emit folderDownloadRequested(f.id, zipName,
                                                              currentLocalPath_ + "/" + zipName);
                             }
                         }
