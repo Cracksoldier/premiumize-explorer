@@ -269,7 +269,7 @@ void PremiumizeApi::fetchTransferList()
 
 void PremiumizeApi::searchItems(const QString& query)
 {
-    QUrl url(QStringLiteral("%1/item/search").arg(kBaseUrl));
+    QUrl url(QStringLiteral("%1/folder/search").arg(kBaseUrl));
     QUrlQuery q;
     q.addQueryItem("q", query);
     url.setQuery(q);
