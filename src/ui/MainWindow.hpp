@@ -1,7 +1,10 @@
 #pragma once
 #include "api/ApiTypes.hpp"
 
+#include <QHash>
 #include <QMainWindow>
+#include <QPair>
+#include <QString>
 
 class CloudTransfersWindow;
 class FilePane;
@@ -47,4 +50,6 @@ private:
     CloudTransfersWindow*   cloudTransfersWindow_{};
     FilePane*               localPane_;
     FilePane*               cloudPane_;
+
+    QHash<QString, QPair<QString, QString>> pendingFolderDownloads_; // folderId → {name, destPath}
 };

@@ -36,6 +36,7 @@ signals:
     void uploadRequested(QStringList localPaths, QString targetFolderId);
     void downloadRequested(QString remoteUrl, QString localDestPath,
                            qint64 expectedSize, QString itemName);
+    void folderDownloadRequested(QString folderId, QString itemName, QString localDestPath);
     void createFolderRequested(QString parentId);
     void deleteRequested(QString itemId, bool isFolder);
     void localPathChanged(QString newPath);

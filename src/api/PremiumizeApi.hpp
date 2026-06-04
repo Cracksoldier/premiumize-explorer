@@ -31,6 +31,7 @@ public:
     void fetchTransferList();
     void searchItems(const QString& query);
     void resolveFolderName(const QString& folderId);
+    void fetchFolderDownloadLink(const QString& folderId);
 
     // Return raw replies — caller connects and deletes when done
     QNetworkReply* startDownload(const QString& url);
@@ -46,6 +47,7 @@ signals:
     void transferListReady(QList<api::CloudTransferEntry> entries);
     void searchResultsReady(QList<api::FolderItem> items);
     void folderNameResolved(QString folderId, QString folderName);
+    void folderDownloadLinkReady(QString folderId, QString url);
     void networkError(QString message);
     void requestLogged(QString entry);
 

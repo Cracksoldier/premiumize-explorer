@@ -321,6 +321,20 @@ void PremiumizeApi::resolveFolderName(const QString& folderId)
     }, startMs);
 }
 
+void PremiumizeApi::fetchFolderDownloadLink(const QString& folderId)
+{
+    QUrl url(QStringLiteral("%1/folder/download").arg(kBaseUrl));
+    QUrlQuery q;
+    q.addQueryItem("id", folderId);
+    url.setQuery(q);
+    const qint64 startMs = QDateTime::currentMSecsSinceEpoch();
+    emit requestLogged(ts() + QStringLiteral("→ GET %1").arg(url.toString()));
+    auto* reply = nam_.get(authorizedRequest(url));
+    handleJsonReply(reply, [this, folderId](const QJsonObject& obj) {
+        emit folderDownloadLinkReady(folderId, obj.value("location").toString());
+    }, startMs);
+}
+
 QNetworkReply* PremiumizeApi::startDownload(const QString& url)
 {
     emit requestLogged(ts() + QStringLiteral("→ GET %1").arg(url));
