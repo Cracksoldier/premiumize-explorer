@@ -24,6 +24,7 @@ public:
                          qint64         expectedSize,
                          const QString& itemName);
     void cancelAll();
+    void cancelJob(int jobId);
 
 signals:
     void jobStarted(int jobId, QString name, qint64 totalBytes);
@@ -37,8 +38,8 @@ private:
     void dispatchNext();
     void onJobFinished(QObject* job, int jobId, bool success, const QString& error);
 
-    api::PremiumizeApi*                              api_;
-    std::deque<std::function<QObject*(int jobId)>>  queue_;
-    std::vector<QObject*>                            active_;
-    int                                              nextJobId_ = 0;
+    api::PremiumizeApi*                                        api_;
+    std::deque<std::pair<int, std::function<QObject*()>>>     queue_;
+    std::vector<std::pair<int, QObject*>>                      active_;
+    int                                                        nextJobId_ = 0;
 };

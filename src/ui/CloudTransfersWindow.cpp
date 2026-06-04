@@ -1,4 +1,5 @@
 #include "CloudTransfersWindow.hpp"
+#include "FormatHelpers.hpp"
 #include "api/PremiumizeApi.hpp"
 
 #include <QHBoxLayout>
@@ -134,9 +135,9 @@ void CloudTransfersWindow::on_transferListReady(const QList<api::CloudTransferEn
         row.progressBar->setVisible(isActive || (pct > 0 && pct < 100));
 
         if (isActive && entry.speedDown > 0) {
-            QString stats = QStringLiteral("↓ %1/s").arg(formatBytes(entry.speedDown));
+            QString stats = QStringLiteral("↓ %1/s").arg(ui::formatBytes(entry.speedDown));
             if (entry.eta >= 0)
-                stats += QStringLiteral("  —  ETA %1").arg(formatEta(entry.eta));
+                stats += QStringLiteral("  —  ETA %1").arg(ui::formatDuration(entry.eta * 1000));
             row.statsLabel->setText(stats);
             row.statsLabel->setVisible(true);
         } else if (!entry.message.isEmpty()) {
@@ -159,21 +160,6 @@ void CloudTransfersWindow::on_transferListReady(const QList<api::CloudTransferEn
     }
 }
 
-QString CloudTransfersWindow::formatBytes(qint64 bytes)
-{
-    if (bytes < 0) return "?";
-    if (bytes < 1024) return QStringLiteral("%1 B").arg(bytes);
-    if (bytes < 1024 * 1024) return QStringLiteral("%1 KB").arg(bytes / 1024);
-    if (bytes < 1024 * 1024 * 1024) return QStringLiteral("%1 MB").arg(bytes / (1024 * 1024));
-    return QStringLiteral("%1 GB").arg(bytes / (1024 * 1024 * 1024));
-}
-
-QString CloudTransfersWindow::formatEta(qint64 seconds)
-{
-    if (seconds < 0) return "?";
-    if (seconds >= 60) return QStringLiteral("%1m %2s").arg(seconds / 60).arg(seconds % 60);
-    return QStringLiteral("%1s").arg(seconds);
-}
 
 QString CloudTransfersWindow::statusColor(const QString& status)
 {

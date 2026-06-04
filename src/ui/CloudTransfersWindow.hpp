@@ -37,8 +37,6 @@ private:
         QLabel*       statsLabel = nullptr;
     };
 
-    static QString formatBytes(qint64 bytes);
-    static QString formatEta(qint64 seconds);
     static QString statusColor(const QString& status);
 
     api::PremiumizeApi* api_;
