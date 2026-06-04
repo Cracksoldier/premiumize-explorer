@@ -12,16 +12,63 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLabel>
+#include <QLineEdit>
 #include <QListView>
 #include <QMenu>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QRegularExpression>
 #include <QSortFilterProxyModel>
 #include <QToolBar>
 #include <QUrl>
 #include <QVBoxLayout>
 
 static constexpr const char* kCloudMime = "application/x-premiumize-items";
+
+// File-local proxy model: wraps PremiumizeModel and filters by name wildcard.
+// The "↑ Up" virtual row (source row 0 when present) always passes through.
+class CloudFilterProxy : public QSortFilterProxyModel
+{
+public:
+    explicit CloudFilterProxy(PremiumizeModel* src, QObject* parent = nullptr)
+        : QSortFilterProxyModel(parent), source_(src)
+    {
+        setSourceModel(src);
+    }
+
+    void setPattern(const QString& raw) {
+        beginFilterChange();
+        pattern_ = raw;
+        QString wild = raw;
+        if (!wild.isEmpty() && !wild.contains('*') && !wild.contains('?'))
+            wild = '*' + wild + '*';
+        re_ = QRegularExpression(
+            QRegularExpression::wildcardToRegularExpression(wild),
+            QRegularExpression::CaseInsensitiveOption);
+        endFilterChange();
+    }
+
+    // Helpers: take proxy-model indices and delegate to source model.
+    bool isUpEntryAt(const QModelIndex& proxyIdx) const {
+        return source_->isUpEntry(mapToSource(proxyIdx).row());
+    }
+    const api::FolderItem* itemAt(const QModelIndex& proxyIdx) const {
+        return source_->itemAtViewRow(mapToSource(proxyIdx).row());
+    }
+
+protected:
+    bool filterAcceptsRow(int sourceRow, const QModelIndex&) const override {
+        if (source_->isUpEntry(sourceRow)) return true;
+        if (pattern_.isEmpty()) return true;
+        const auto* item = source_->itemAtViewRow(sourceRow);
+        return item && re_.match(item->name).hasMatch();
+    }
+
+private:
+    PremiumizeModel*   source_;
+    QRegularExpression re_;
+    QString            pattern_;
+};
 
 FilePane::FilePane(PaneType type, QWidget* parent)
     : QWidget(parent)
@@ -54,6 +101,14 @@ void FilePane::setupLayout()
 
         auto* deleteAct = toolbar->addAction("Delete");
         connect(deleteAct, &QAction::triggered, this, &FilePane::on_delete_clicked);
+
+        toolbar->addSeparator();
+        filterEdit_ = new QLineEdit(this);
+        filterEdit_->setPlaceholderText("Filter…");
+        filterEdit_->setClearButtonEnabled(true);
+        filterEdit_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        filterEdit_->setMaximumWidth(200);
+        toolbar->addWidget(filterEdit_);
     }
 
     if (type_ == PaneType::Local) {
@@ -91,8 +146,12 @@ void FilePane::setupLocalModel()
 
 void FilePane::setupCloudModel()
 {
-    cloudModel_ = new PremiumizeModel(this);
-    view_->setModel(cloudModel_);
+    cloudModel_       = new PremiumizeModel(this);
+    cloudFilterProxy_ = new CloudFilterProxy(cloudModel_, this);
+    view_->setModel(cloudFilterProxy_);
+
+    connect(filterEdit_, &QLineEdit::textChanged,
+            cloudFilterProxy_, &CloudFilterProxy::setPattern);
 }
 
 void FilePane::setLocalPath(const QString& path)
@@ -135,8 +194,8 @@ void FilePane::on_itemActivated(const QModelIndex& index)
         const QString path = localModel_->filePath(srcIdx);
         if (localModel_->isDir(srcIdx)) setLocalPath(path);
     } else {
-        if (cloudModel_->isUpEntry(index.row())) { on_upButton_clicked(); return; }
-        const auto* item = cloudModel_->itemAtViewRow(index.row());
+        if (cloudFilterProxy_->isUpEntryAt(index)) { on_upButton_clicked(); return; }
+        const auto* item = cloudFilterProxy_->itemAt(index);
         if (item && item->isFolder()) emit navigateCloudRequested(item->id);
     }
 }
@@ -169,7 +228,7 @@ void FilePane::on_delete_clicked()
 
     if (type_ == PaneType::Cloud) {
         for (const auto& idx : selected) {
-            const auto* item = cloudModel_->itemAtViewRow(idx.row());
+            const auto* item = cloudFilterProxy_->itemAt(idx);
             if (!item) continue;
             emit deleteRequested(item->id, item->isFolder());
         }
@@ -183,7 +242,7 @@ void FilePane::on_contextMenu(const QPoint& pos)
 
     if (type_ == PaneType::Cloud) {
         if (idx.isValid()) {
-            const auto* item = cloudModel_->itemAtViewRow(idx.row());
+            const auto* item = cloudFilterProxy_->itemAt(idx);
             if (item) {
                 const QString itemId      = item->id;
                 const bool    itemIsFolder = item->isFolder();
@@ -196,8 +255,8 @@ void FilePane::on_contextMenu(const QPoint& pos)
 
                 bool hasDownloadable = false;
                 for (const auto& si : targets) {
-                    if (cloudModel_->isUpEntry(si.row())) continue;
-                    const auto* f = cloudModel_->itemAtViewRow(si.row());
+                    if (cloudFilterProxy_->isUpEntryAt(si)) continue;
+                    const auto* f = cloudFilterProxy_->itemAt(si);
                     if (f && ((f->link.has_value() && !f->link->isEmpty()) || f->isFolder())) {
                         hasDownloadable = true;
                         break;
@@ -207,8 +266,8 @@ void FilePane::on_contextMenu(const QPoint& pos)
                     auto* dlAct = menu.addAction("Download");
                     connect(dlAct, &QAction::triggered, this, [this, targets]() {
                         for (const QModelIndex& si : targets) {
-                            if (cloudModel_->isUpEntry(si.row())) continue;
-                            const auto* f = cloudModel_->itemAtViewRow(si.row());
+                            if (cloudFilterProxy_->isUpEntryAt(si)) continue;
+                            const auto* f = cloudFilterProxy_->itemAt(si);
                             if (!f) continue;
                             if (f->link.has_value() && !f->link->isEmpty()) {
                                 const bool    isDir = f->isFolder();
