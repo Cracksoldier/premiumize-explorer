@@ -187,20 +187,24 @@ void FilePane::on_contextMenu(const QPoint& pos)
             if (item) {
                 const QString itemId      = item->id;
                 const bool    itemIsFolder = item->isFolder();
-                if (!itemIsFolder) {
-                    auto* dlAct = menu.addAction("Download");
-                    connect(dlAct, &QAction::triggered, this, [this, itemId]() {
-                        for (int r = 0; r < cloudModel_->rowCount(); ++r) {
-                            const auto* f = cloudModel_->itemAtViewRow(r);
-                            if (f && f->id == itemId && f->link) {
-                                emit downloadRequested(*f->link,
-                                                       currentLocalPath_ + "/" + f->name,
-                                                       f->size.value_or(-1), f->name);
-                                return;
-                            }
+                auto* dlAct = menu.addAction("Download");
+                connect(dlAct, &QAction::triggered, this, [this]() {
+                    for (const QModelIndex& si : view_->selectionModel()->selectedIndexes()) {
+                        if (cloudModel_->isUpEntry(si.row())) continue;
+                        const auto* f = cloudModel_->itemAtViewRow(si.row());
+                        if (!f) continue;
+                        if (f->link.has_value() && !f->link->isEmpty()) {
+                            const bool    isDir = f->isFolder();
+                            const QString name  = f->name + (isDir ? ".zip" : "");
+                            emit downloadRequested(*f->link,
+                                                   currentLocalPath_ + "/" + name,
+                                                   isDir ? -1 : f->size.value_or(-1), name);
+                        } else if (f->isFolder()) {
+                            emit folderDownloadRequested(f->id, f->name + ".zip",
+                                                         currentLocalPath_ + "/" + f->name + ".zip");
                         }
-                    });
-                }
+                    }
+                });
                 auto* delAct = menu.addAction("Delete");
                 connect(delAct, &QAction::triggered, this, [this, itemId, itemIsFolder]() {
                     emit deleteRequested(itemId, itemIsFolder);

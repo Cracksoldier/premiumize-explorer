@@ -180,6 +180,20 @@ void MainWindow::connectSignals()
                 progressWindow_->show();
                 progressWindow_->raise();
             });
+    connect(cloudPane_, &FilePane::folderDownloadRequested,
+            this, [this](const QString& id, const QString& name, const QString& dest) {
+                pendingFolderDownloads_.insert(id, {name, dest});
+                api_->fetchFolderDownloadLink(id);
+            });
+    connect(api_, &api::PremiumizeApi::folderDownloadLinkReady,
+            this, [this](const QString& id, const QString& url) {
+                if (!pendingFolderDownloads_.contains(id)) return;
+                const auto [name, dest] = pendingFolderDownloads_.take(id);
+                if (url.isEmpty()) return;
+                transferManager_->enqueueDownload(url, dest, -1, name);
+                progressWindow_->show();
+                progressWindow_->raise();
+            });
     connect(cloudPane_, &FilePane::uploadRequested,
             this, [this](const QStringList& paths, const QString& folderId) {
                 transferManager_->enqueueUpload(paths, folderId);
