@@ -13,7 +13,7 @@ void TransferManager::enqueueUpload(const QStringList& localPaths,
 {
     for (const auto& path : localPaths) {
         const int id = nextJobId_++;
-        queue_.push_back([this, path, targetFolderId, id](int /*jobId*/) -> QObject* {
+        queue_.push_back({id, [this, path, targetFolderId, id]() -> QObject* {
             auto* job = new UploadJob(path, targetFolderId, api_, this);
             emit jobStarted(id, job->fileName(), job->totalBytes());
             connect(job, &UploadJob::progress, this,
@@ -27,7 +27,7 @@ void TransferManager::enqueueUpload(const QStringList& localPaths,
                     });
             job->start();
             return job;
-        });
+        }});
     }
     dispatchNext();
 }
@@ -38,7 +38,7 @@ void TransferManager::enqueueDownload(const QString& remoteUrl,
                                        const QString& itemName)
 {
     const int id = nextJobId_++;
-    queue_.push_back([this, remoteUrl, localDestPath, expectedSize, itemName, id](int) -> QObject* {
+    queue_.push_back({id, [this, remoteUrl, localDestPath, expectedSize, itemName, id]() -> QObject* {
         auto* job = new DownloadJob(remoteUrl, localDestPath, expectedSize, api_, this);
         emit jobStarted(id, itemName, expectedSize);
         connect(job, &DownloadJob::progress, this,
@@ -52,30 +52,40 @@ void TransferManager::enqueueDownload(const QString& remoteUrl,
                 });
         job->start();
         return job;
-    });
+    }});
     dispatchNext();
 }
 
 void TransferManager::cancelAll()
 {
     queue_.clear();
-    const auto snapshot = active_;  // abort() emits finished() synchronously, which modifies active_
-    for (auto* obj : snapshot) {
-        if (auto* up = qobject_cast<UploadJob*>(obj)) {
-            up->cancel();
-        } else if (auto* dl = qobject_cast<DownloadJob*>(obj)) {
-            dl->cancel();
-        }
+    const auto snapshot = active_;  // cancel() emits finished() synchronously, which modifies active_
+    for (const auto& [id, obj] : snapshot) {
+        if (auto* up = qobject_cast<UploadJob*>(obj)) up->cancel();
+        else if (auto* dl = qobject_cast<DownloadJob*>(obj)) dl->cancel();
     }
+}
+
+void TransferManager::cancelJob(int jobId)
+{
+    QObject* target = nullptr;
+    for (const auto& [id, obj] : active_) {
+        if (id == jobId) { target = obj; break; }
+    }
+    if (!target) return;
+    // Exit the loop before calling cancel(): cancel() emits finished() synchronously,
+    // which calls onJobFinished() which erases from active_ — iterator must not be live.
+    if (auto* dl = qobject_cast<DownloadJob*>(target)) dl->cancel();
+    else if (auto* up = qobject_cast<UploadJob*>(target)) up->cancel();
 }
 
 void TransferManager::dispatchNext()
 {
     while (!queue_.empty() &&
            static_cast<int>(active_.size()) < MaxConcurrent) {
-        auto factory = queue_.front();
+        auto [id, factory] = queue_.front();
         queue_.pop_front();
-        active_.push_back(factory(nextJobId_));
+        active_.push_back({id, factory()});
     }
 }
 
@@ -85,7 +95,10 @@ void TransferManager::onJobFinished(QObject* job, int jobId, bool success, const
     if (auto* up = qobject_cast<UploadJob*>(job)) {
         emit uploadFinished(up->targetFolderId(), success, error);
     }
-    active_.erase(std::remove(active_.begin(), active_.end(), job), active_.end());
+    active_.erase(
+        std::remove_if(active_.begin(), active_.end(),
+                       [job](const auto& p) { return p.second == job; }),
+        active_.end());
     job->deleteLater();
     dispatchNext();
     if (active_.empty() && queue_.empty()) {

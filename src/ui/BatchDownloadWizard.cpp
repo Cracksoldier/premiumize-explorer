@@ -396,8 +396,9 @@ void ProgressPage::on_jobProgress(int id, qint64 bytes, qint64 total,
 void ProgressPage::on_jobFinished(int id, bool success, const QString& error)
 {
     if (id != currentJobId_) return;
+    if (cancelled_) return;  // cancelBatch() fires finished() synchronously; skip counting
 
-    if (!success && !cancelled_) {
+    if (!success) {
         const QString name = currentIndex_ < totalCount_ ? items_[currentIndex_].name : QString{};
         currentNameLabel_->setText(
             QStringLiteral("Failed: %1 (%2)").arg(name, error));
@@ -434,16 +435,22 @@ void ProgressPage::markDone()
     emit completeChanged();
 }
 
-void ProgressPage::on_cancel_clicked()
+void ProgressPage::cancelBatch()
 {
+    if (allDone_) return;  // guard against double-call (button + Escape race)
     cancelled_ = true;
-    // cancelAll() is safe here: wizard is modal so no other downloads are in-flight
-    manager_->cancelAll();
+    if (currentJobId_ != -1)
+        manager_->cancelJob(currentJobId_);  // cancel only the batch job, not unrelated transfers
     allDone_ = true;
     clockTimer_->stop();
     cancelBtn_->setVisible(false);
     currentNameLabel_->setText("Cancelled.");
     emit completeChanged();
+}
+
+void ProgressPage::on_cancel_clicked()
+{
+    cancelBatch();
 }
 
 // ── Wizard container ──────────────────────────────────────────────────────────
@@ -471,4 +478,11 @@ BatchDownloadWizard::BatchDownloadWizard(api::PremiumizeApi* api,
     setStartId(PageSearch);
 
     resize(620, 520);
+}
+
+void BatchDownloadWizard::reject()
+{
+    if (progressPage_ && !progressPage_->isComplete())
+        progressPage_->cancelBatch();
+    QWizard::reject();
 }

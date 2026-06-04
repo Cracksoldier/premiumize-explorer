@@ -89,6 +89,8 @@ public:
     bool isComplete()     const override;
     int  nextId()         const override;
 
+    void cancelBatch();
+
 private slots:
     void on_jobStarted(int id, const QString& name, qint64 total);
     void on_jobProgress(int id, qint64 bytes, qint64 total,
@@ -133,6 +135,9 @@ public:
                                   TransferManager*    manager,
                                   const QString&      initialLocalPath,
                                   QWidget*            parent = nullptr);
+
+protected:
+    void reject() override;
 
 private:
     SearchPage*      searchPage_;
