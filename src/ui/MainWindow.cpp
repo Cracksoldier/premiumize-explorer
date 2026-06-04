@@ -182,6 +182,7 @@ void MainWindow::connectSignals()
             });
     connect(cloudPane_, &FilePane::folderDownloadRequested,
             this, [this](const QString& id, const QString& name, const QString& dest) {
+                if (pendingFolderDownloads_.contains(id)) return;
                 pendingFolderDownloads_.insert(id, {name, dest});
                 api_->fetchFolderDownloadLink(id);
             });
@@ -189,7 +190,11 @@ void MainWindow::connectSignals()
             this, [this](const QString& id, const QString& url) {
                 if (!pendingFolderDownloads_.contains(id)) return;
                 const auto [name, dest] = pendingFolderDownloads_.take(id);
-                if (url.isEmpty()) return;
+                if (url.isEmpty()) {
+                    statusBar()->showMessage(
+                        QStringLiteral("Download link unavailable for \"%1\"").arg(name));
+                    return;
+                }
                 transferManager_->enqueueDownload(url, dest, -1, name);
                 progressWindow_->show();
                 progressWindow_->raise();
