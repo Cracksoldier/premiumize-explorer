@@ -367,9 +367,11 @@ void ProgressPage::startNextFile()
     while (currentIndex_ < totalCount_) {
         const auto& item = items_[currentIndex_];
         if (!item.link.has_value() || item.link->isEmpty()) {
-            if (currentIndex_ < fileList_->count())
+            if (currentIndex_ < fileList_->count()) {
                 fileList_->item(currentIndex_)->setIcon(
                     style()->standardIcon(QStyle::SP_MessageBoxCritical));
+                fileList_->scrollToItem(fileList_->item(currentIndex_));
+            }
             ++currentIndex_;
             totalBar_->setValue(currentIndex_);
             continue;
@@ -395,7 +397,7 @@ void ProgressPage::on_jobStarted(int id, const QString& /*name*/, qint64 total)
     currentBar_->setMaximum(total > 0 ? 1000 : 0);
     if (currentIndex_ < fileList_->count()) {
         fileList_->item(currentIndex_)->setIcon(
-            style()->standardIcon(QStyle::SP_ArrowRight));
+            style()->standardIcon(QStyle::SP_BrowserReload));
         fileList_->scrollToItem(fileList_->item(currentIndex_));
     }
 }
@@ -434,8 +436,7 @@ void ProgressPage::on_jobFinished(int id, bool success, const QString& error)
     ++currentIndex_;
     totalBar_->setValue(currentIndex_);
 
-    if (!cancelled_)
-        startNextFile();
+    startNextFile();
 }
 
 void ProgressPage::updateTimerLabel()
