@@ -49,11 +49,13 @@ TransferProgressWindow  (non-modal Qt::Tool window)
 | `PremiumizeModel` | `src/model/PremiumizeModel.hpp` | `QAbstractListModel` for the cloud pane (flat list, one folder at a time). Injects a virtual "↑ Up" row at position 0 when not at root; `showUpEntry()` (private) derives visibility from `currentFolderId_` / `parentFolderId_` — no separate stored flag. Use `isUpEntry(row)` and `itemAtViewRow(row)` (returns nullptr for the up row or OOB) at every call site. Emits `application/x-premiumize-items` MIME for drag-and-drop. |
 | `UpEntryProxyModel` | `src/model/UpEntryProxyModel.hpp` | `QIdentityProxyModel` wrapping `QFileSystemModel` for the local pane. Inserts a virtual "↑ Up" row at position 0 when not at root. A heap-allocated `QObject* sentinel_` is used as `internalPointer` to identify the virtual row. `viewRoot_` is a plain `QModelIndex` (not `QPersistentModelIndex`) — `endResetModel()` invalidates persistent indices. Not used for the cloud pane. |
 | `FilePane` | `src/ui/FilePane.hpp` | Reusable widget used for both panes. `PaneType::Local` wraps `QFileSystemModel` via `UpEntryProxyModel`; `PaneType::Cloud` drives `PremiumizeModel`. The cloud pane's download destination is kept in sync with the local pane via `setDownloadPath()`, called by `MainWindow` on every `localPathChanged`. Handles all drag/drop events and emits typed signals upward. |
-| `TransferManager` | `src/transfer/TransferManager.hpp` | Job queue, max 2 concurrent. Job pointers are passed explicitly to `onJobFinished` — never use `QObject::sender()` here, it is unreliable when called from a regular member function. Emits `uploadFinished(folderId, success, error)` per upload job so `MainWindow` can auto-refresh the cloud pane. |
+| `TransferManager` | `src/transfer/TransferManager.hpp` | Job queue, max 2 concurrent. `queue_` and `active_` store `pair<int, …>` so job IDs are preserved through `dispatchNext()`. `cancelJob(int)` cancels a single job without disturbing unrelated transfers; `cancelAll()` cancels everything. Never use `QObject::sender()` in `onJobFinished` — pass job pointers explicitly. Emits `uploadFinished(folderId, success, error)` per upload so `MainWindow` can auto-refresh the cloud pane. |
 | `UploadJob` | `src/transfer/UploadJob.hpp` | Two-step upload: fetches token/URL via `PremiumizeApi::fetchUploadInfo()` (private reply), then POSTs a manually constructed `QByteArray` multipart body. Uses its own `QNetworkAccessManager` with `Http2AllowedAttribute=false`. |
 | `DownloadJob` | `src/transfer/DownloadJob.hpp` | Streams `QNetworkReply` bytes directly to a `QFile`. Reply comes from `PremiumizeApi::startDownload`. |
 | `LogWindow` | `src/ui/LogWindow.hpp` | Non-modal `Qt::Tool` window showing a timestamped log of all API requests and responses. Opened via **View → API Log**. "Save to File…" and "Clear" buttons. Fed by `PremiumizeApi::requestLogged` signal. |
 | `CloudTransfersWindow` | `src/ui/CloudTransfersWindow.hpp` | Non-modal `Qt::Tool` window showing Premiumize server-side transfers (`GET /transfer/list`). Displays name, status badge, progress bar, speed, and ETA. Polls every 5 s while visible; stops polling when hidden. Opened via **View → Cloud Transfers**. |
+| `BatchDownloadWizard` | `src/ui/BatchDownloadWizard.hpp` | Modal `QWizard` with three pages: `SearchPage` (keyword search → checkbox list), `DestinationPage` (local path picker), `ProgressPage` (dual progress bars + timer). Downloads files sequentially via `TransferManager`. Opened via **File → Batch Download… (Ctrl+Shift+D)**. |
+| `FormatHelpers` | `src/ui/FormatHelpers.hpp` | Shared inline helpers `ui::formatBytes(qint64)` and `ui::formatDuration(qint64 ms)` used by `TransferProgressWindow`, `CloudTransfersWindow`, and `BatchDownloadWizard`. |
 | `MainWindow` | `src/ui/MainWindow.hpp` | Wires everything together. Owns all subsystem instances. Connects `PremiumizeApi` signals to pane updates and `FilePane` signals to API calls / transfer enqueuing. |
 
 ### Upload flow (two-step API requirement)
@@ -96,9 +98,19 @@ Both panes show a "↑ Up" entry at row 0 whenever not at root. Each pane handle
 
 Always call `isUpEntry` before accessing item data. Never store row offsets across model resets.
 
-### cancelAll() iterator safety
+### Batch download wizard
 
-`QNetworkReply::abort()` emits `finished` synchronously (direct connection, same thread), which chains through `on_finished()` → `onJobFinished()` → `active_.erase()`. `cancelAll()` therefore iterates a **snapshot copy** of `active_` so the original can be modified freely during cancellation. Preserve this pattern if new cancellation paths are added.
+`BatchDownloadWizard` (`src/ui/BatchDownloadWizard.hpp`) is a modal `QWizard` that downloads multiple cloud files sequentially:
+
+1. **SearchPage** — calls `api_->searchItems(query)` (`GET /api/item/search?q=`), shows results as a checkbox list filtered to files with a valid `link`. Items without a link are silently skipped.
+2. **DestinationPage** — picks a writable local directory. `initializePage()` reads the file list from `SearchPage` for the summary label.
+3. **ProgressPage** — `initializePage()` calls `startNextFile()` which enqueues one download at a time via `TransferManager::enqueueDownload`. The wizard tracks the active job ID in `currentJobId_` so progress signals from unrelated jobs are ignored.
+
+**Cancel safety**: `cancelBatch()` sets `cancelled_ = true`, calls `manager_->cancelJob(currentJobId_)`, and marks `allDone_`. `on_jobFinished` guards `if (cancelled_) return` to skip the synchronous re-entrant call that fires when `cancelJob` aborts the in-flight reply. `BatchDownloadWizard::reject()` calls `cancelBatch()` before delegating to `QWizard::reject()`, so Escape and the window X button are also safe.
+
+### cancelAll() and cancelJob() iterator safety
+
+`QNetworkReply::abort()` emits `finished` synchronously (direct connection, same thread), which chains through `on_finished()` → `onJobFinished()` → `active_.erase()`. `cancelAll()` therefore iterates a **snapshot copy** of `active_` so the original can be modified freely during cancellation. `cancelJob(int)` exits its search loop and saves a pointer before calling `cancel()`, for the same reason. Preserve this pattern if new cancellation paths are added.
 
 ### Theme
 

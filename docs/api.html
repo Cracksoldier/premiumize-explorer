@@ -337,6 +337,7 @@
     <li><div class="group">Subsystems</div></li>
     <li><a href="#upload-flow">Upload flow</a></li>
     <li><a href="#transfer-manager">Transfer manager</a></li>
+    <li><a href="#batch-download">Batch download wizard</a></li>
     <li><a href="#cloud-transfers">Cloud transfers window</a></li>
     <li><a href="#log-window">API log window</a></li>
     <li><div class="group">UI</div></li>
@@ -367,6 +368,7 @@
         <li><div class="group">Subsystems</div></li>
         <li><a href="#upload-flow">Upload flow</a></li>
         <li><a href="#transfer-manager">Transfer manager</a></li>
+        <li><a href="#batch-download">Batch download wizard</a></li>
         <li><a href="#cloud-transfers">Cloud transfers window</a></li>
         <li><a href="#log-window">API log window</a></li>
 
@@ -400,6 +402,8 @@
           <tr><td><code>TransferProgressWindow</code></td><td><code>src/ui/TransferProgressWindow.hpp</code></td><td>Non-modal tool window tracking local upload/download jobs.</td></tr>
           <tr><td><code>CloudTransfersWindow</code></td><td><code>src/ui/CloudTransfersWindow.hpp</code></td><td>Non-modal tool window showing Premiumize server-side transfers. Polls every 5 s.</td></tr>
           <tr><td><code>LogWindow</code></td><td><code>src/ui/LogWindow.hpp</code></td><td>Non-modal tool window with a timestamped log of all API requests and responses.</td></tr>
+          <tr><td><code>BatchDownloadWizard</code></td><td><code>src/ui/BatchDownloadWizard.hpp</code></td><td>Modal <code>QWizard</code> — search cloud files by keyword, select with checkboxes, pick a destination, then download sequentially with dual progress bars.</td></tr>
+          <tr><td><code>FormatHelpers</code></td><td><code>src/ui/FormatHelpers.hpp</code></td><td>Inline helpers <code>ui::formatBytes(qint64)</code> and <code>ui::formatDuration(qint64 ms)</code> shared across all windows that display transfer metrics.</td></tr>
           <tr><td><code>AppConfig</code></td><td><code>src/config/AppConfig.hpp</code></td><td>Singleton <code>QSettings</code> facade. Persists API key, paths, geometry, theme preference.</td></tr>
           <tr><td><code>MainWindow</code></td><td><code>src/ui/MainWindow.hpp</code></td><td>Root widget. Owns all subsystem instances and wires their signals together.</td></tr>
         </tbody>
@@ -635,6 +639,25 @@ QNetworkReply* fetchUploadInfo(const QString&amp; targetFolderId = {});</pre>
         </div>
       </div>
 
+      <!-- item/search -->
+      <div class="endpoint">
+        <div class="endpoint-header">
+          <span class="method get">GET</span>
+          <span class="endpoint-path">/item/search</span>
+        </div>
+        <div class="endpoint-body">
+          <p>Search all cloud files by keyword. Results are filtered to <code>ItemType::File</code> entries that have a valid <code>link</code> field. Used by <code>BatchDownloadWizard</code>.</p>
+          <pre>void searchItems(const QString&amp; query);</pre>
+          <table>
+            <thead><tr><th>Parameter</th><th>Where</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td><code>q</code></td><td>Query string</td><td>Search keywords</td></tr>
+            </tbody>
+          </table>
+          <p><strong>Emits:</strong> <code>searchResultsReady(QList&lt;FolderItem&gt;)</code></p>
+        </div>
+      </div>
+
       <!-- startDownload (raw) -->
       <div class="endpoint">
         <div class="endpoint-header">
@@ -690,6 +713,11 @@ QNetworkReply* fetchUploadInfo(const QString&amp; targetFolderId = {});</pre>
         </div>
         <div class="signal-row">
           <span class="sig-badge">SIGNAL</span>
+          <span class="sig-name">searchResultsReady(QList&lt;FolderItem&gt;)</span>
+          <span class="sig-desc">— file search results from <code>/item/search</code>; consumed by <code>BatchDownloadWizard</code></span>
+        </div>
+        <div class="signal-row">
+          <span class="sig-badge">SIGNAL</span>
           <span class="sig-name">networkError(QString)</span>
           <span class="sig-desc">— emitted for any non-success response or network failure</span>
         </div>
@@ -730,23 +758,55 @@ QNetworkReply* fetchUploadInfo(const QString&amp; targetFolderId = {});</pre>
       <pre>void enqueueUpload(const QStringList&amp; localPaths, const QString&amp; targetFolderId);
 void enqueueDownload(const QString&amp; remoteUrl, const QString&amp; localDestPath,
                      qint64 expectedSize, const QString&amp; itemName);</pre>
-      <p>Each call appends a factory lambda to an internal <code>std::deque</code>. Jobs are not created until <code>dispatchNext()</code> pulls them from the queue.</p>
+      <p>Each call pre-assigns a job ID (<code>nextJobId_++</code>), captures it in a factory lambda, and appends a <code>pair&lt;int, factory&gt;</code> to an internal <code>std::deque</code>. Jobs are not started until <code>dispatchNext()</code> pulls them; active jobs are stored as <code>pair&lt;int, QObject*&gt;</code> so IDs can be looked up at any time.</p>
+
+      <h3>Cancellation</h3>
+      <pre>void cancelAll();            // cancel every queued and active job
+void cancelJob(int jobId);   // cancel one specific job only</pre>
+      <p><code>cancelJob</code> is used by <code>BatchDownloadWizard</code> so cancelling a wizard download does not abort unrelated uploads. Both methods exit any loop over <code>active_</code> before calling <code>cancel()</code> on the job to avoid iterator invalidation (see note below).</p>
 
       <h3>Signals emitted by TransferManager</h3>
       <table>
         <thead><tr><th>Signal</th><th>Notes</th></tr></thead>
         <tbody>
-          <tr><td><code>jobStarted(jobId, name, totalBytes)</code></td><td>Consumed by <code>TransferProgressWindow</code></td></tr>
+          <tr><td><code>jobStarted(jobId, name, totalBytes)</code></td><td>Consumed by <code>TransferProgressWindow</code> and <code>BatchDownloadWizard</code></td></tr>
           <tr><td><code>jobProgress(jobId, bytes, total, elapsedMs, etaMs, bytesPerSec)</code></td><td>Fired continuously during transfer</td></tr>
-          <tr><td><code>jobFinished(jobId, success, error)</code></td><td>Consumed by <code>TransferProgressWindow</code></td></tr>
+          <tr><td><code>jobFinished(jobId, success, error)</code></td><td>Consumed by <code>TransferProgressWindow</code> and <code>BatchDownloadWizard</code></td></tr>
           <tr><td><code>uploadFinished(folderId, success, error)</code></td><td>Consumed by <code>MainWindow</code> to auto-refresh the cloud pane</td></tr>
           <tr><td><code>allFinished()</code></td><td>Emitted when both the active list and queue are empty</td></tr>
         </tbody>
       </table>
 
       <div class="note">
-        <strong>cancelAll() iterator safety:</strong> <code>QNetworkReply::abort()</code> emits <code>finished</code> synchronously, which chains into <code>onJobFinished()</code> → <code>active_.erase()</code>. <code>cancelAll()</code> therefore iterates a snapshot copy of <code>active_</code> so the original vector can be modified freely during cancellation.
+        <strong>cancelAll() / cancelJob() iterator safety:</strong> <code>QNetworkReply::abort()</code> emits <code>finished</code> synchronously, which chains into <code>onJobFinished()</code> → <code>active_.erase()</code>. <code>cancelAll()</code> iterates a snapshot copy of <code>active_</code>; <code>cancelJob()</code> exits its search loop and saves the target pointer before calling <code>cancel()</code>. Both approaches let the original vector be modified freely during cancellation.
       </div>
+    </div>
+
+    <!-- ══ Batch download wizard ══ -->
+    <div class="section" id="batch-download">
+      <h2>Batch download wizard</h2>
+      <p><code>BatchDownloadWizard</code> (<code>src/ui/BatchDownloadWizard.hpp</code>) is a modal <code>QWizard</code> opened via <strong>File → Batch Download… (Ctrl+Shift+D)</strong>. It downloads multiple cloud files one at a time via <code>TransferManager</code>.</p>
+
+      <h3>Pages</h3>
+      <table>
+        <thead><tr><th>Page</th><th>Class</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>Search</td><td><code>SearchPage</code></td><td>Text field + search button; results shown as a checkbox list with filename and size. Items without a <code>link</code> field are silently excluded. <em>Next</em> is enabled only when at least one item is checked.</td></tr>
+          <tr><td>Destination</td><td><code>DestinationPage</code></td><td>Shows a summary of selected files, a path field pre-filled from the local pane, and a Browse button. <em>Next</em> is enabled only when the path is a writable directory.</td></tr>
+          <tr><td>Progress</td><td><code>ProgressPage</code></td><td>Two progress bars (current file: per-mille range 0–1000; overall: 0–<em>n</em>), a timer label (total / current file / ETA), and a Cancel button.</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Download flow</h3>
+      <p><code>ProgressPage::initializePage()</code> is called once when the wizard advances to the progress page. It reads the selected items from <code>SearchPage</code> and the destination from <code>DestinationPage</code>, then calls <code>startNextFile()</code>, which enqueues one download at a time. The active job ID is stored in <code>currentJobId_</code>; progress and finished signals from unrelated jobs are ignored.</p>
+
+      <h3>Cancel safety</h3>
+      <p>Three entry points all converge on <code>ProgressPage::cancelBatch()</code>:</p>
+      <ul style="padding-left:1.3rem;color:var(--muted);font-size:0.93rem;line-height:2">
+        <li>The <strong>Cancel</strong> button</li>
+        <li>Pressing <strong>Escape</strong> or clicking the window <strong>×</strong> (handled by <code>BatchDownloadWizard::reject()</code>)</li>
+      </ul>
+      <p><code>cancelBatch()</code> sets <code>cancelled_ = true</code> first, then calls <code>manager_-&gt;cancelJob(currentJobId_)</code>. Because <code>cancelJob</code> fires <code>jobFinished</code> synchronously, <code>on_jobFinished</code> guards with <code>if (cancelled_) return</code> to skip the re-entrant call — preventing the total-progress bar from advancing one extra step.</p>
     </div>
 
     <!-- ══ Cloud transfers window ══ -->

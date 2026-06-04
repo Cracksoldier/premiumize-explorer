@@ -13,6 +13,7 @@ A desktop file browser for [Premiumize.me](https://www.premiumize.me) cloud stor
 - **Folder navigation** — breadcrumb path label; **↑ Up** always at the top of each list, hidden only at root
 - **Cloud operations**: create folder, delete file/folder, context menu
 - **Cloud transfers monitor** — live view of server-side Premiumize transfers (torrents, URL downloads) with status, progress, speed and ETA; open via **View → Cloud Transfers**, auto-refreshes every 5 s
+- **Batch download wizard** — search cloud files by keyword, select multiple files with checkboxes, choose a destination folder, and download them all with dual progress bars (per-file + total) and a live timer; open via **File → Batch Download… (Ctrl+Shift+D)**
 - **API log window** — timestamped log of every request and response; open via **View → API Log**, saveable to file
 - **API key stored** in `~/.config/premiumize-explorer/premiumize-explorer.ini` — entered once on first launch
 - **Light / dark theme** — toggle via **View → Dark Mode**, preference persisted across restarts
@@ -67,6 +68,7 @@ To change the key later: **File → Change API Key…**
 | View transfer progress | **View → Transfers** |
 | View cloud transfers (server-side) | **View → Cloud Transfers** — shows torrents/URL downloads Premiumize is processing for you |
 | Refresh the cloud view | Click **⟳** in the cloud pane toolbar (auto-refreshes after completed uploads) |
+| Batch download files | **File → Batch Download… (Ctrl+Shift+D)** — search by keyword, check the files you want, pick a destination, then watch them download |
 | View API log | **View → API Log** — shows all requests/responses with timing; use **Save to File…** to export |
 | Toggle dark mode | **View → Dark Mode** |
 
@@ -92,7 +94,7 @@ src/
 ├── config/       AppConfig — QSettings singleton
 ├── model/        PremiumizeModel — QAbstractListModel for the cloud pane
 ├── transfer/     TransferManager, UploadJob, DownloadJob
-└── ui/           MainWindow, FilePane, TransferProgressWindow, LogWindow, CloudTransfersWindow, dialogs
+└── ui/           MainWindow, FilePane, TransferProgressWindow, LogWindow, CloudTransfersWindow, BatchDownloadWizard, FormatHelpers, dialogs
 ```
 
 ## API
