@@ -13,7 +13,7 @@ A desktop file browser for [Premiumize.me](https://www.premiumize.me) cloud stor
 - **Folder navigation** — breadcrumb path label; **↑ Up** always at the top of each list, hidden only at root
 - **Cloud operations**: create folder, delete file/folder, context menu
 - **Cloud transfers monitor** — live view of server-side Premiumize transfers (torrents, URL downloads) with status, progress, speed and ETA; open via **View → Cloud Transfers**, auto-refreshes every 5 s
-- **Batch download wizard** — search cloud files by keyword, select multiple files with checkboxes, choose a destination folder, and download them all with dual progress bars (per-file + total) and a live timer; open via **File → Batch Download… (Ctrl+Shift+D)**
+- **Batch download wizard** — search cloud files by keyword, select multiple files with checkboxes, choose a destination folder, and download them all with dual progress bars (per-file + total), a live timer, and a scrollable per-file status list with live icons (pending / active / done / error); open via **File → Batch Download… (Ctrl+Shift+D)**
 - **API log window** — timestamped log of every request and response; open via **View → API Log**, saveable to file
 - **API key stored** in `~/.config/premiumize-explorer/premiumize-explorer.ini` — entered once on first launch
 - **Light / dark theme** — toggle via **View → Dark Mode**, preference persisted across restarts

@@ -402,7 +402,7 @@
           <tr><td><code>TransferProgressWindow</code></td><td><code>src/ui/TransferProgressWindow.hpp</code></td><td>Non-modal tool window tracking local upload/download jobs.</td></tr>
           <tr><td><code>CloudTransfersWindow</code></td><td><code>src/ui/CloudTransfersWindow.hpp</code></td><td>Non-modal tool window showing Premiumize server-side transfers. Polls every 5 s.</td></tr>
           <tr><td><code>LogWindow</code></td><td><code>src/ui/LogWindow.hpp</code></td><td>Non-modal tool window with a timestamped log of all API requests and responses.</td></tr>
-          <tr><td><code>BatchDownloadWizard</code></td><td><code>src/ui/BatchDownloadWizard.hpp</code></td><td>Modal <code>QWizard</code> — search cloud files by keyword, select with checkboxes, pick a destination, then download sequentially with dual progress bars.</td></tr>
+          <tr><td><code>BatchDownloadWizard</code></td><td><code>src/ui/BatchDownloadWizard.hpp</code></td><td>Modal <code>QWizard</code> — search cloud files by keyword, select with checkboxes, pick a destination, then download sequentially with dual progress bars and a per-file status list.</td></tr>
           <tr><td><code>FormatHelpers</code></td><td><code>src/ui/FormatHelpers.hpp</code></td><td>Inline helpers <code>ui::formatBytes(qint64)</code> and <code>ui::formatDuration(qint64 ms)</code> shared across all windows that display transfer metrics.</td></tr>
           <tr><td><code>AppConfig</code></td><td><code>src/config/AppConfig.hpp</code></td><td>Singleton <code>QSettings</code> facade. Persists API key, paths, geometry, theme preference.</td></tr>
           <tr><td><code>MainWindow</code></td><td><code>src/ui/MainWindow.hpp</code></td><td>Root widget. Owns all subsystem instances and wires their signals together.</td></tr>
@@ -714,7 +714,7 @@ QNetworkReply* fetchUploadInfo(const QString&amp; targetFolderId = {});</pre>
         <div class="signal-row">
           <span class="sig-badge">SIGNAL</span>
           <span class="sig-name">searchResultsReady(QList&lt;FolderItem&gt;)</span>
-          <span class="sig-desc">— file search results from <code>/item/search</code>; consumed by <code>BatchDownloadWizard</code></span>
+          <span class="sig-desc">— file search results from <code>/folder/search</code>; consumed by <code>BatchDownloadWizard</code></span>
         </div>
         <div class="signal-row">
           <span class="sig-badge">SIGNAL</span>
@@ -793,12 +793,25 @@ void cancelJob(int jobId);   // cancel one specific job only</pre>
         <tbody>
           <tr><td>Search</td><td><code>SearchPage</code></td><td>Text field + search button; results shown as a checkbox list with filename and size. Items without a <code>link</code> field are silently excluded. <em>Next</em> is enabled only when at least one item is checked.</td></tr>
           <tr><td>Destination</td><td><code>DestinationPage</code></td><td>Shows a summary of selected files, a path field pre-filled from the local pane, and a Browse button. <em>Next</em> is enabled only when the path is a writable directory.</td></tr>
-          <tr><td>Progress</td><td><code>ProgressPage</code></td><td>Two progress bars (current file: per-mille range 0–1000; overall: 0–<em>n</em>), a timer label (total / current file / ETA), and a Cancel button.</td></tr>
+          <tr><td>Progress</td><td><code>ProgressPage</code></td><td>Two progress bars (current file: per-mille range 0–1000; overall: 0–<em>n</em>), a timer label (total / current file / ETA), a scrollable per-file status list, and a Cancel button.</td></tr>
         </tbody>
       </table>
 
       <h3>Download flow</h3>
       <p><code>ProgressPage::initializePage()</code> is called once when the wizard advances to the progress page. It reads the selected items from <code>SearchPage</code> and the destination from <code>DestinationPage</code>, then calls <code>startNextFile()</code>, which enqueues one download at a time. The active job ID is stored in <code>currentJobId_</code>; progress and finished signals from unrelated jobs are ignored.</p>
+
+      <h3>Per-file status list</h3>
+      <p>A <code>QListWidget</code> below the progress bars shows one row per file with a live status icon. Icons are sourced from <code>style()-&gt;standardIcon(QStyle::SP_…)</code>:</p>
+      <table>
+        <thead><tr><th>State</th><th>Icon</th><th>When set</th></tr></thead>
+        <tbody>
+          <tr><td>Pending</td><td><code>SP_FileIcon</code></td><td><code>initializePage()</code> for all items</td></tr>
+          <tr><td>Active</td><td><code>SP_BrowserReload</code></td><td><code>on_jobStarted()</code>; list auto-scrolls to this row</td></tr>
+          <tr><td>Success</td><td><code>SP_DialogOkButton</code></td><td><code>on_jobFinished()</code> when <code>success == true</code></td></tr>
+          <tr><td>Error / No link</td><td><code>SP_MessageBoxCritical</code></td><td><code>on_jobFinished()</code> on failure; <code>startNextFile()</code> for items without a download link (also scrolls)</td></tr>
+          <tr><td>Cancelled</td><td><code>SP_DialogCancelButton</code></td><td><code>cancelBatch()</code> for the in-flight item</td></tr>
+        </tbody>
+      </table>
 
       <h3>Cancel safety</h3>
       <p>Three entry points all converge on <code>ProgressPage::cancelBatch()</code>:</p>
