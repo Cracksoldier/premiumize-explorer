@@ -330,9 +330,30 @@ void PremiumizeApi::fetchFolderDownloadLink(const QString& folderId)
     const qint64 startMs = QDateTime::currentMSecsSinceEpoch();
     emit requestLogged(ts() + QStringLiteral("→ GET %1").arg(url.toString()));
     auto* reply = nam_.get(authorizedRequest(url));
-    handleJsonReply(reply, [this, folderId](const QJsonObject& obj) {
+    connect(reply, &QNetworkReply::finished, this, [this, reply, folderId, startMs]() {
+        reply->deleteLater();
+        const qint64 ms = QDateTime::currentMSecsSinceEpoch() - startMs;
+        if (reply->error() != QNetworkReply::NoError) {
+            emit requestLogged(ts() + QStringLiteral("← ERR (%1ms) %2")
+                .arg(ms).arg(reply->errorString()));
+            emit networkError(reply->errorString());
+            emit folderDownloadLinkReady(folderId, {});
+            return;
+        }
+        const auto raw = reply->readAll();
+        const auto doc = QJsonDocument::fromJson(raw);
+        emit requestLogged(ts() + QStringLiteral("← %1 (%2ms) %3")
+            .arg(reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt())
+            .arg(ms)
+            .arg(QString::fromUtf8(raw.left(200))));
+        const auto obj = doc.isObject() ? doc.object() : QJsonObject{};
+        if (obj.value("status").toString() != QStringLiteral("success")) {
+            emit networkError(obj.value("message").toString("Unknown error"));
+            emit folderDownloadLinkReady(folderId, {});
+            return;
+        }
         emit folderDownloadLinkReady(folderId, obj.value("location").toString());
-    }, startMs);
+    });
 }
 
 QNetworkReply* PremiumizeApi::startDownload(const QString& url)

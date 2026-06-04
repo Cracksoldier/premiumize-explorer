@@ -187,24 +187,43 @@ void FilePane::on_contextMenu(const QPoint& pos)
             if (item) {
                 const QString itemId      = item->id;
                 const bool    itemIsFolder = item->isFolder();
-                auto* dlAct = menu.addAction("Download");
-                connect(dlAct, &QAction::triggered, this, [this]() {
-                    for (const QModelIndex& si : view_->selectionModel()->selectedIndexes()) {
-                        if (cloudModel_->isUpEntry(si.row())) continue;
-                        const auto* f = cloudModel_->itemAtViewRow(si.row());
-                        if (!f) continue;
-                        if (f->link.has_value() && !f->link->isEmpty()) {
-                            const bool    isDir = f->isFolder();
-                            const QString name  = f->name + (isDir ? ".zip" : "");
-                            emit downloadRequested(*f->link,
-                                                   currentLocalPath_ + "/" + name,
-                                                   isDir ? -1 : f->size.value_or(-1), name);
-                        } else if (f->isFolder()) {
-                            emit folderDownloadRequested(f->id, f->name + ".zip",
-                                                         currentLocalPath_ + "/" + f->name + ".zip");
-                        }
+
+                // Targets: full selection if right-clicked item is in it, else just that item.
+                const bool idxInSelection = view_->selectionModel()->isSelected(idx);
+                const QList<QModelIndex> targets = idxInSelection
+                    ? view_->selectionModel()->selectedIndexes()
+                    : QList<QModelIndex>{idx};
+
+                bool hasDownloadable = false;
+                for (const auto& si : targets) {
+                    if (cloudModel_->isUpEntry(si.row())) continue;
+                    const auto* f = cloudModel_->itemAtViewRow(si.row());
+                    if (f && ((f->link.has_value() && !f->link->isEmpty()) || f->isFolder())) {
+                        hasDownloadable = true;
+                        break;
                     }
-                });
+                }
+                if (hasDownloadable) {
+                    auto* dlAct = menu.addAction("Download");
+                    connect(dlAct, &QAction::triggered, this, [this, targets]() {
+                        for (const QModelIndex& si : targets) {
+                            if (cloudModel_->isUpEntry(si.row())) continue;
+                            const auto* f = cloudModel_->itemAtViewRow(si.row());
+                            if (!f) continue;
+                            if (f->link.has_value() && !f->link->isEmpty()) {
+                                const bool    isDir = f->isFolder();
+                                const QString name  = f->name + (isDir ? ".zip" : "");
+                                emit downloadRequested(*f->link,
+                                                       currentLocalPath_ + "/" + name,
+                                                       f->size.value_or(-1), name);
+                            } else if (f->isFolder()) {
+                                const QString zipName = f->name + ".zip";
+                                emit folderDownloadRequested(f->id, zipName,
+                                                             currentLocalPath_ + "/" + zipName);
+                            }
+                        }
+                    });
+                }
                 auto* delAct = menu.addAction("Delete");
                 connect(delAct, &QAction::triggered, this, [this, itemId, itemIsFolder]() {
                     emit deleteRequested(itemId, itemIsFolder);
