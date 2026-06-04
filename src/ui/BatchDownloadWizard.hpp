@@ -3,6 +3,7 @@
 #include "api/ApiTypes.hpp"
 
 #include <QElapsedTimer>
+#include <QHash>
 #include <QList>
 #include <QWizard>
 
@@ -35,6 +36,7 @@ private slots:
     void on_searchResultsReady(const QList<api::FolderItem>& items);
     void on_networkError(const QString& message);
     void on_selectionChanged();
+    void on_folderNameResolved(const QString& id, const QString& name);
 
 private:
     api::PremiumizeApi* api_;
@@ -45,9 +47,10 @@ private:
     QPushButton*        deselectAllBtn_ = nullptr;
     QLabel*             statusLabel_    = nullptr;
 
-    QList<api::FolderItem> currentResults_;
-    bool                   hasChecked_ = false;
-    bool                   searching_  = false;
+    QList<api::FolderItem>  currentResults_;
+    QHash<QString, QString> folderNames_;
+    bool                    hasChecked_ = false;
+    bool                    searching_  = false;
 };
 
 // ── DestinationPage ───────────────────────────────────────────────────────────

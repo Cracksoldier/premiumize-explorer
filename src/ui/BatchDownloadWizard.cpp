@@ -5,6 +5,7 @@
 
 #include <QDir>
 #include <QFileDialog>
+#include <QSet>
 #include <QFileInfo>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -77,6 +78,8 @@ SearchPage::SearchPage(api::PremiumizeApi* api, QWidget* parent)
             this, &SearchPage::on_searchResultsReady);
     connect(api_, &api::PremiumizeApi::networkError,
             this, &SearchPage::on_networkError);
+    connect(api_, &api::PremiumizeApi::folderNameResolved,
+            this, &SearchPage::on_folderNameResolved);
 }
 
 bool SearchPage::isComplete() const
@@ -129,6 +132,7 @@ void SearchPage::on_searchResultsReady(const QList<api::FolderItem>& items)
     resultsList_->blockSignals(true);
     resultsList_->clear();
     currentResults_.clear();
+    folderNames_.clear();
 
     for (const auto& item : items) {
         currentResults_.append(item);
@@ -141,6 +145,15 @@ void SearchPage::on_searchResultsReady(const QList<api::FolderItem>& items)
         resultsList_->addItem(listItem);
     }
     resultsList_->blockSignals(false);
+
+    QSet<QString> seen;
+    for (const auto& item : currentResults_) {
+        if (item.parentId.has_value() && !item.parentId->isEmpty()
+                && !seen.contains(*item.parentId)) {
+            seen.insert(*item.parentId);
+            api_->resolveFolderName(*item.parentId);
+        }
+    }
 
     const bool hasResults = !items.isEmpty();
     selectAllBtn_->setEnabled(hasResults);
@@ -158,6 +171,23 @@ void SearchPage::on_networkError(const QString& message)
     searching_ = false;
     searchBtn_->setEnabled(!queryEdit_->text().trimmed().isEmpty());
     statusLabel_->setText(QStringLiteral("Search failed: %1").arg(message));
+}
+
+void SearchPage::on_folderNameResolved(const QString& id, const QString& name)
+{
+    const QString displayName = name.isEmpty() ? QStringLiteral("/") : name;
+    folderNames_.insert(id, displayName);
+
+    for (int i = 0; i < currentResults_.size() && i < resultsList_->count(); ++i) {
+        const auto& item = currentResults_[i];
+        if (item.parentId.has_value() && *item.parentId == id) {
+            const QString sizeStr = item.size.has_value()
+                ? QStringLiteral("  (%1)").arg(ui::formatBytes(*item.size))
+                : QString{};
+            resultsList_->item(i)->setText(
+                item.name + sizeStr + QStringLiteral("  [%1]").arg(displayName));
+        }
+    }
 }
 
 void SearchPage::on_selectionChanged()

@@ -17,6 +17,7 @@ struct FolderItem {
     std::optional<qint64>  size;
     std::optional<QString> mimeType;
     std::optional<QString> link;
+    std::optional<QString> parentId;
 
     bool isFolder() const { return type == ItemType::Folder; }
 };

@@ -297,9 +297,25 @@ void PremiumizeApi::searchItems(const QString& query)
             if (mimeVal.isString()) fi.mimeType = mimeVal.toString();
             const auto linkVal = item.value("link");
             if (linkVal.isString()) fi.link = linkVal.toString();
+            const auto parentVal = item.value("parent_id");
+            if (parentVal.isString()) fi.parentId = parentVal.toString();
             results.append(std::move(fi));
         }
         emit searchResultsReady(std::move(results));
+    }, startMs);
+}
+
+void PremiumizeApi::resolveFolderName(const QString& folderId)
+{
+    QUrl url(QStringLiteral("%1/folder/list").arg(kBaseUrl));
+    QUrlQuery q;
+    q.addQueryItem("id", folderId);
+    url.setQuery(q);
+    const qint64 startMs = QDateTime::currentMSecsSinceEpoch();
+    emit requestLogged(ts() + QStringLiteral("→ GET %1").arg(url.toString()));
+    auto* reply = nam_.get(authorizedRequest(url));
+    handleJsonReply(reply, [this, folderId](const QJsonObject& obj) {
+        emit folderNameResolved(folderId, obj.value("name").toString());
     }, startMs);
 }
 
