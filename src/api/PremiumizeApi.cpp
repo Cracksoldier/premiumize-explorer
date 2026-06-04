@@ -307,6 +307,8 @@ void PremiumizeApi::searchItems(const QString& query)
 
 void PremiumizeApi::resolveFolderName(const QString& folderId)
 {
+    // Uses /folder/list because there is no lighter Premiumize endpoint that
+    // returns only folder metadata. The content array in the response is ignored.
     QUrl url(QStringLiteral("%1/folder/list").arg(kBaseUrl));
     QUrlQuery q;
     q.addQueryItem("id", folderId);

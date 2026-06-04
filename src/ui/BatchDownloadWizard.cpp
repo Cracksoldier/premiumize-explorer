@@ -16,6 +16,13 @@
 #include <QTimer>
 #include <QVBoxLayout>
 
+static QString itemSizeStr(const api::FolderItem& item)
+{
+    return item.size.has_value()
+        ? QStringLiteral("  (%1)").arg(ui::formatBytes(*item.size))
+        : QString{};
+}
+
 // ── SearchPage ────────────────────────────────────────────────────────────────
 
 SearchPage::SearchPage(api::PremiumizeApi* api, QWidget* parent)
@@ -110,6 +117,7 @@ void SearchPage::on_search_clicked()
     const QString query = queryEdit_->text().trimmed();
     if (query.isEmpty()) return;
 
+    ++generation_;
     searching_ = true;
     searchBtn_->setEnabled(false);
     resultsList_->clear();
@@ -132,25 +140,24 @@ void SearchPage::on_searchResultsReady(const QList<api::FolderItem>& items)
     resultsList_->blockSignals(true);
     resultsList_->clear();
     currentResults_.clear();
-    folderNames_.clear();
 
     for (const auto& item : items) {
         currentResults_.append(item);
-        const QString sizeStr = item.size.has_value()
-            ? QStringLiteral("  (%1)").arg(ui::formatBytes(*item.size))
-            : QString{};
-        auto* listItem = new QListWidgetItem(item.name + sizeStr);
+        auto* listItem = new QListWidgetItem(item.name + itemSizeStr(item));
         listItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsUserCheckable);
         listItem->setCheckState(Qt::Unchecked);
         resultsList_->addItem(listItem);
     }
     resultsList_->blockSignals(false);
 
+    resolveGen_ = generation_;
+    pendingResolutions_ = 0;
     QSet<QString> seen;
     for (const auto& item : currentResults_) {
         if (item.parentId.has_value() && !item.parentId->isEmpty()
                 && !seen.contains(*item.parentId)) {
             seen.insert(*item.parentId);
+            ++pendingResolutions_;
             api_->resolveFolderName(*item.parentId);
         }
     }
@@ -167,26 +174,34 @@ void SearchPage::on_searchResultsReady(const QList<api::FolderItem>& items)
 
 void SearchPage::on_networkError(const QString& message)
 {
-    if (!searching_) return;
-    searching_ = false;
-    searchBtn_->setEnabled(!queryEdit_->text().trimmed().isEmpty());
-    statusLabel_->setText(QStringLiteral("Search failed: %1").arg(message));
+    if (searching_) {
+        searching_ = false;
+        searchBtn_->setEnabled(!queryEdit_->text().trimmed().isEmpty());
+        statusLabel_->setText(QStringLiteral("Search failed: %1").arg(message));
+        return;
+    }
+    if (resolveGen_ != generation_) return;
+    if (pendingResolutions_ > 0) {
+        --pendingResolutions_;
+        if (!hasChecked_)
+            statusLabel_->setText(
+                QStringLiteral("%1 file(s) found — some folder names unavailable")
+                    .arg(currentResults_.size()));
+    }
 }
 
 void SearchPage::on_folderNameResolved(const QString& id, const QString& name)
 {
+    if (resolveGen_ != generation_) return;
+    if (pendingResolutions_ > 0) --pendingResolutions_;
+
     const QString displayName = name.isEmpty() ? QStringLiteral("/") : name;
-    folderNames_.insert(id, displayName);
 
     for (int i = 0; i < currentResults_.size() && i < resultsList_->count(); ++i) {
         const auto& item = currentResults_[i];
-        if (item.parentId.has_value() && *item.parentId == id) {
-            const QString sizeStr = item.size.has_value()
-                ? QStringLiteral("  (%1)").arg(ui::formatBytes(*item.size))
-                : QString{};
+        if (item.parentId.has_value() && *item.parentId == id)
             resultsList_->item(i)->setText(
-                item.name + sizeStr + QStringLiteral("  [%1]").arg(displayName));
-        }
+                item.name + itemSizeStr(item) + QStringLiteral("  [%1]").arg(displayName));
     }
 }
 
@@ -366,13 +381,8 @@ void ProgressPage::initializePage()
 
     fileList_->clear();
     const QIcon pendingIcon = style()->standardIcon(QStyle::SP_FileIcon);
-    for (const auto& item : items_) {
-        const QString label = item.name +
-            (item.size.has_value()
-                ? QStringLiteral("  (%1)").arg(ui::formatBytes(*item.size))
-                : QString{});
-        new QListWidgetItem(pendingIcon, label, fileList_);
-    }
+    for (const auto& item : items_)
+        new QListWidgetItem(pendingIcon, item.name + itemSizeStr(item), fileList_);
 
     wizard()->button(QWizard::BackButton)->setVisible(false);
 
