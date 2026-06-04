@@ -47,11 +47,10 @@ private:
     QLabel*             statusLabel_    = nullptr;
 
     QList<api::FolderItem> currentResults_;
-    int  generation_        = 0; // incremented each time a search is initiated
-    int  resolveGen_        = 0; // generation active when resolveFolderName calls were fired
-    int  pendingResolutions_ = 0;
-    bool hasChecked_        = false;
-    bool searching_         = false;
+    int  generation_ = 0; // incremented each time a search is initiated
+    int  resolveGen_ = 0; // generation active when resolveFolderName calls were fired
+    bool hasChecked_ = false;
+    bool searching_  = false;
 };
 
 // ── DestinationPage ───────────────────────────────────────────────────────────
