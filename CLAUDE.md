@@ -44,7 +44,7 @@ TransferProgressWindow  (non-modal Qt::Tool window)
 | Class | File | Role |
 |---|---|---|
 | `api::PremiumizeApi` | `src/api/PremiumizeApi.hpp` | All HTTP calls; fire-and-emit (never blocking). Auth via `Authorization: Bearer` header. |
-| `api::ApiTypes` | `src/api/ApiTypes.hpp` | Plain data structs: `FolderItem`, `FolderListing`, `UploadInfo`, `AccountInfo`, `CloudTransferEntry`. |
+| `api::ApiTypes` | `src/api/ApiTypes.hpp` | Plain data structs: `FolderItem`, `FolderListing`, `UploadInfo`, `AccountInfo`, `CloudTransferEntry`. `FolderItem` carries `std::optional<QString> parentId` populated by `searchItems` (search results include `parent_id`); not set by `listFolder`. |
 | `AppConfig` | `src/config/AppConfig.hpp` | Singleton QSettings facade. Writes to `~/.config/premiumize-explorer/premiumize-explorer.ini`. |
 | `PremiumizeModel` | `src/model/PremiumizeModel.hpp` | `QAbstractListModel` for the cloud pane (flat list, one folder at a time). Injects a virtual "↑ Up" row at position 0 when not at root; `showUpEntry()` (private) derives visibility from `currentFolderId_` / `parentFolderId_` — no separate stored flag. Use `isUpEntry(row)` and `itemAtViewRow(row)` (returns nullptr for the up row or OOB) at every call site. Emits `application/x-premiumize-items` MIME for drag-and-drop. |
 | `UpEntryProxyModel` | `src/model/UpEntryProxyModel.hpp` | `QIdentityProxyModel` wrapping `QFileSystemModel` for the local pane. Inserts a virtual "↑ Up" row at position 0 when not at root. A heap-allocated `QObject* sentinel_` is used as `internalPointer` to identify the virtual row. `viewRoot_` is a plain `QModelIndex` (not `QPersistentModelIndex`) — `endResetModel()` invalidates persistent indices. Not used for the cloud pane. |
@@ -102,9 +102,13 @@ Always call `isUpEntry` before accessing item data. Never store row offsets acro
 
 `BatchDownloadWizard` (`src/ui/BatchDownloadWizard.hpp`) is a modal `QWizard` that downloads multiple cloud files sequentially:
 
-1. **SearchPage** — calls `api_->searchItems(query)` (`GET /api/folder/search?q=`), shows results as a checkbox list filtered to files with a valid `link`. Items without a link are silently skipped.
+1. **SearchPage** — calls `api_->searchItems(query)` (`GET /api/folder/search?q=`), shows results as a checkbox list. After results arrive, calls `api_->resolveFolderName(parentId)` once per unique `parentId` found in the results; each response appends `[FolderName]` to the matching list items. Items without a `link` are silently skipped during download.
 2. **DestinationPage** — picks a writable local directory. `initializePage()` reads the file list from `SearchPage` for the summary label.
 3. **ProgressPage** — `initializePage()` calls `startNextFile()` which enqueues one download at a time via `TransferManager::enqueueDownload`. The wizard tracks the active job ID in `currentJobId_` so progress signals from unrelated jobs are ignored. A scrollable `QListWidget` below the progress bars shows every file with a live status icon: pending (`SP_FileIcon`), active (`SP_BrowserReload`), success (`SP_DialogOkButton`), error/skipped (`SP_MessageBoxCritical`), or cancelled (`SP_DialogCancelButton`). Both successfully-downloaded and link-less skipped items call `scrollToItem` so the active row is always visible.
+
+**Folder-name resolution generation guard**: `SearchPage` keeps two counters — `generation_` (incremented in `on_search_clicked`) and `resolveGen_` (set to `generation_` in `on_searchResultsReady` before the resolve calls fire). Both `on_folderNameResolved` and the resolution-error branch in `on_networkError` check `resolveGen_ != generation_` and return early if a newer search has superseded the current one. `pendingResolutions_` tracks in-flight resolve calls so that `on_networkError` can distinguish resolution failures (which set a subtle status message) from search failures (which clear the results). Item size strings are formatted via the file-local `itemSizeStr(const api::FolderItem&)` helper used by both `SearchPage` and `ProgressPage`.
+
+**`resolveFolderName`** calls `GET /folder/list?id=<folderId>` and reads only the top-level `name` field; the `content` array is ignored. There is no lighter Premiumize endpoint that returns only folder metadata.
 
 **Cancel safety**: `cancelBatch()` sets `cancelled_ = true`, calls `manager_->cancelJob(currentJobId_)`, and marks `allDone_`. `on_jobFinished` guards `if (cancelled_) return` to skip the synchronous re-entrant call that fires when `cancelJob` aborts the in-flight reply. `BatchDownloadWizard::reject()` calls `cancelBatch()` before delegating to `QWizard::reject()`, so Escape and the window X button are also safe.
 
