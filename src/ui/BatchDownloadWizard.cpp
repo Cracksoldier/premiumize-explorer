@@ -300,7 +300,11 @@ ProgressPage::ProgressPage(TransferManager* manager, QWidget* parent)
     timerLabel_ = new QLabel("Total: 0s  |  Current file: 0s  |  ETA: ?");
     vl->addWidget(timerLabel_);
 
-    vl->addStretch();
+    fileList_ = new QListWidget;
+    fileList_->setSelectionMode(QAbstractItemView::NoSelection);
+    fileList_->setFocusPolicy(Qt::NoFocus);
+    fileList_->setUniformItemSizes(true);
+    vl->addWidget(fileList_, 1);
 
     cancelBtn_ = new QPushButton("Cancel");
     vl->addWidget(cancelBtn_, 0, Qt::AlignRight);
@@ -330,6 +334,16 @@ void ProgressPage::initializePage()
     totalBar_->setRange(0, totalCount_);
     totalBar_->setValue(0);
 
+    fileList_->clear();
+    const QIcon pendingIcon = style()->standardIcon(QStyle::SP_FileIcon);
+    for (const auto& item : items_) {
+        const QString label = item.name +
+            (item.size.has_value()
+                ? QStringLiteral("  (%1)").arg(ui::formatBytes(*item.size))
+                : QString{});
+        new QListWidgetItem(pendingIcon, label, fileList_);
+    }
+
     wizard()->button(QWizard::BackButton)->setVisible(false);
 
     batchTimer_.start();
@@ -353,6 +367,9 @@ void ProgressPage::startNextFile()
     while (currentIndex_ < totalCount_) {
         const auto& item = items_[currentIndex_];
         if (!item.link.has_value() || item.link->isEmpty()) {
+            if (currentIndex_ < fileList_->count())
+                fileList_->item(currentIndex_)->setIcon(
+                    style()->standardIcon(QStyle::SP_MessageBoxCritical));
             ++currentIndex_;
             totalBar_->setValue(currentIndex_);
             continue;
@@ -376,6 +393,11 @@ void ProgressPage::on_jobStarted(int id, const QString& /*name*/, qint64 total)
     currentFileEtaMs_ = -1;
     currentBar_->setValue(0);
     currentBar_->setMaximum(total > 0 ? 1000 : 0);
+    if (currentIndex_ < fileList_->count()) {
+        fileList_->item(currentIndex_)->setIcon(
+            style()->standardIcon(QStyle::SP_ArrowRight));
+        fileList_->scrollToItem(fileList_->item(currentIndex_));
+    }
 }
 
 void ProgressPage::on_jobProgress(int id, qint64 bytes, qint64 total,
@@ -397,6 +419,11 @@ void ProgressPage::on_jobFinished(int id, bool success, const QString& error)
 {
     if (id != currentJobId_) return;
     if (cancelled_) return;  // cancelBatch() fires finished() synchronously; skip counting
+
+    if (currentIndex_ < fileList_->count()) {
+        fileList_->item(currentIndex_)->setIcon(style()->standardIcon(
+            success ? QStyle::SP_DialogOkButton : QStyle::SP_MessageBoxCritical));
+    }
 
     if (!success) {
         const QString name = currentIndex_ < totalCount_ ? items_[currentIndex_].name : QString{};
@@ -439,6 +466,9 @@ void ProgressPage::cancelBatch()
 {
     if (allDone_) return;  // guard against double-call (button + Escape race)
     cancelled_ = true;
+    if (currentIndex_ < fileList_->count())
+        fileList_->item(currentIndex_)->setIcon(
+            style()->standardIcon(QStyle::SP_DialogCancelButton));
     if (currentJobId_ != -1)
         manager_->cancelJob(currentJobId_);  // cancel only the batch job, not unrelated transfers
     allDone_ = true;
