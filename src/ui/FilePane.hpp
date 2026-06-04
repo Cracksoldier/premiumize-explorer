@@ -5,9 +5,11 @@
 
 class QListView;
 class QLabel;
+class QLineEdit;
 class QToolBar;
 class QFileSystemModel;
 class PremiumizeModel;
+class CloudFilterProxy;
 class UpEntryProxyModel;
 
 class FilePane : public QWidget
@@ -65,9 +67,11 @@ private:
     QListView*       view_;
     QLabel*          pathLabel_;
 
-    QFileSystemModel*  localModel_  = nullptr;
-    UpEntryProxyModel* upProxy_     = nullptr;
-    PremiumizeModel*   cloudModel_  = nullptr;
+    QFileSystemModel*  localModel_        = nullptr;
+    UpEntryProxyModel* upProxy_           = nullptr;
+    PremiumizeModel*   cloudModel_        = nullptr;
+    CloudFilterProxy*  cloudFilterProxy_  = nullptr;
+    QLineEdit*         filterEdit_        = nullptr;
 
     QString currentLocalPath_;
     QString currentCloudId_;
