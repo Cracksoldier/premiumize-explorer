@@ -11,7 +11,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QInputDialog>
+#include "CreateFolderDialog.hpp"
 #include <QLabel>
 #include <QLineEdit>
 #include <QListView>
@@ -224,13 +224,22 @@ void FilePane::on_upButton_clicked()
 void FilePane::on_createLocalFolder_clicked()
 {
     if (currentLocalPath_.isEmpty()) return;
-    bool ok = false;
-    const QString name = QInputDialog::getText(
-        this, "New Folder", "Folder name:", QLineEdit::Normal, {}, &ok);
-    if (!ok || name.trimmed().isEmpty()) return;
-    if (!QDir(currentLocalPath_).mkdir(name.trimmed()))
+    CreateFolderDialog dlg(this);
+    if (dlg.exec() != QDialog::Accepted) return;
+    const QString name = dlg.folderName();  // already trimmed, non-empty
+    if (QFileInfo(name).fileName() != name) {
         QMessageBox::warning(this, "New Folder",
-            QStringLiteral("Could not create \"%1\".").arg(name.trimmed()));
+            "Folder name must not contain path separators.");
+        return;
+    }
+    if (!QDir(currentLocalPath_).mkdir(name)) {
+        if (QDir(currentLocalPath_).exists(name))
+            QMessageBox::warning(this, "New Folder",
+                QStringLiteral("A folder named \"%1\" already exists.").arg(name));
+        else
+            QMessageBox::warning(this, "New Folder",
+                QStringLiteral("Could not create \"%1\".").arg(name));
+    }
 }
 
 void FilePane::on_createFolder_clicked()
@@ -327,6 +336,11 @@ void FilePane::on_contextMenu(const QPoint& pos)
             connect(uploadAct, &QAction::triggered, this, [this, paths]() {
                 emit uploadRequested(paths, uploadTargetFolderId_);
             });
+        }
+        if (!currentLocalPath_.isEmpty()) {
+            auto* newFolderAct = menu.addAction("New Folder…");
+            connect(newFolderAct, &QAction::triggered,
+                    this, &FilePane::on_createLocalFolder_clicked);
         }
     }
 
