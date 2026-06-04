@@ -11,7 +11,7 @@ A desktop file browser for [Premiumize.me](https://www.premiumize.me) cloud stor
 - **Auto-refresh** — cloud pane updates automatically when an upload into the displayed folder completes
 - **Non-blocking transfer progress window** showing speed, ETA, elapsed time, and bytes transferred per file
 - **Folder navigation** — breadcrumb path label; **↑ Up** always at the top of each list, hidden only at root
-- **Cloud operations**: create folder, delete file/folder, context menu
+- **Cloud operations**: create folder, delete file/folder, context menu; **multi-select** with Ctrl+Click / Shift+Click — right-click → **Download** enqueues each selected file directly and each selected folder as a `.zip` archive
 - **Cloud transfers monitor** — live view of server-side Premiumize transfers (torrents, URL downloads) with status, progress, speed and ETA; open via **View → Cloud Transfers**, auto-refreshes every 5 s
 - **Batch download wizard** — search cloud files by keyword, select multiple files with checkboxes, choose a destination folder, and download them all with dual progress bars (per-file + total), a live timer, and a scrollable per-file status list with live icons (pending / active / done / error); open via **File → Batch Download… (Ctrl+Shift+D)**
 - **API log window** — timestamped log of every request and response; open via **View → API Log**, saveable to file
@@ -62,7 +62,7 @@ To change the key later: **File → Change API Key…**
 | Navigate into a folder | Double-click |
 | Go up | Click **↑ Up** at the top of the list |
 | Upload files | Drag files from the local pane onto the cloud pane, or right-click a local file → **Upload to Cloud** |
-| Download a file | Drag a file from the cloud pane onto the local pane, or right-click → **Download** |
+| Download files / folders | Drag from the cloud pane onto the local pane; or select one or more items (Ctrl+Click / Shift+Click) and right-click → **Download** — files download directly, folders download as `.zip` archives |
 | Create a cloud folder | Click **+ Folder** in the cloud pane toolbar or right-click → **New Folder…** |
 | Delete a cloud item | Select it and click **Delete**, or right-click → **Delete** |
 | View transfer progress | **View → Transfers** |
