@@ -109,6 +109,7 @@ private:
     QProgressBar* currentBar_       = nullptr;
     QProgressBar* totalBar_         = nullptr;
     QLabel*       timerLabel_       = nullptr;
+    QListWidget*  fileList_         = nullptr;
     QPushButton*  cancelBtn_        = nullptr;
     QTimer*       clockTimer_       = nullptr;
 
