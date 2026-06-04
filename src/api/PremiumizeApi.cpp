@@ -345,13 +345,17 @@ void PremiumizeApi::resolveFolderName(const QString& folderId)
 
 void PremiumizeApi::fetchFolderDownloadLink(const QString& folderId)
 {
-    QUrl url(QStringLiteral("%1/folder/download").arg(kBaseUrl));
-    QUrlQuery q;
-    q.addQueryItem("id", folderId);
-    url.setQuery(q);
+    QUrl url(QStringLiteral("%1/zip/generate").arg(kBaseUrl));
+    QUrlQuery query;
+    query.addQueryItem("folders[]", folderId);
+
+    QNetworkRequest req = authorizedRequest(url);
+    req.setHeader(QNetworkRequest::ContentTypeHeader,
+                  "application/x-www-form-urlencoded");
+    const QString body = query.toString(QUrl::FullyEncoded);
     const qint64 startMs = QDateTime::currentMSecsSinceEpoch();
-    emit requestLogged(ts() + QStringLiteral("→ GET %1").arg(url.toString()));
-    auto* reply = nam_.get(authorizedRequest(url));
+    emit requestLogged(ts() + QStringLiteral("→ POST %1\n  Body: %2").arg(url.toString(), body));
+    auto* reply = nam_.post(req, body.toUtf8());
     connect(reply, &QNetworkReply::finished, this, [this, reply, folderId, startMs]() {
         reply->deleteLater();
         const qint64 ms = QDateTime::currentMSecsSinceEpoch() - startMs;
