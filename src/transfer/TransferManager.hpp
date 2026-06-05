@@ -26,7 +26,12 @@ public:
                          const QString& itemName);
     void cancelAll();
     void cancelJob(int jobId);
-    void retryJob(int jobId);
+    bool retryJob(int jobId);
+    void dismissJob(int jobId);
+
+    // Sentinel emitted (and compared) for all user-initiated cancellations.
+    // Both job files and TransferProgressWindow use this literal — keep them in sync.
+    static constexpr const char* const kCancelledError = "Cancelled";
 
 signals:
     void jobQueued(int jobId, QString name, qint64 totalBytes);

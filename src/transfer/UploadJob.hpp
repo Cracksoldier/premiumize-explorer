@@ -40,9 +40,11 @@ private:
     QString              targetFolderId_;
     api::PremiumizeApi*  api_;
     QNetworkAccessManager uploadNam_;
-    QNetworkReply*       reply_           = nullptr;
+    QNetworkReply*       infoReply_        = nullptr;
+    QNetworkReply*       reply_            = nullptr;
     QElapsedTimer        timer_;
     qint64               totalBytes_       = 0;
     qint64               bytesTransferred_ = 0;
     qint64               uploadStartMs_    = 0;
+    bool                 cancelled_        = false;
 };

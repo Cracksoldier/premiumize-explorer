@@ -26,14 +26,20 @@ void UploadJob::start()
     totalBytes_ = fi.size();
     timer_.start();
 
-    auto* infoReply = api_->fetchUploadInfo(targetFolderId_);
-    connect(infoReply, &QNetworkReply::finished, this, [this, infoReply]() {
-        infoReply->deleteLater();
-        if (infoReply->error() != QNetworkReply::NoError) {
-            emit finished(false, infoReply->errorString());
+    infoReply_ = api_->fetchUploadInfo(targetFolderId_);
+    connect(infoReply_, &QNetworkReply::finished, this, [this]() {
+        auto* reply = infoReply_;
+        infoReply_ = nullptr;
+        reply->deleteLater();
+        if (cancelled_) {
+            emit finished(false, "Cancelled");
             return;
         }
-        const auto raw = infoReply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit finished(false, reply->errorString());
+            return;
+        }
+        const auto raw = reply->readAll();
         const auto doc = QJsonDocument::fromJson(raw);
         if (!doc.isObject()) {
             emit finished(false, QStringLiteral("Invalid upload-info response"));
@@ -59,9 +65,9 @@ void UploadJob::start()
 
 void UploadJob::cancel()
 {
-    if (reply_) {
-        reply_->abort();
-    }
+    cancelled_ = true;
+    if (infoReply_) infoReply_->abort();
+    if (reply_)     reply_->abort();
 }
 
 QString UploadJob::fileName() const
@@ -133,12 +139,15 @@ void UploadJob::on_uploadFinished()
     const qint64 ms = QDateTime::currentMSecsSinceEpoch() - uploadStartMs_;
     const auto responseBody = reply_->readAll();
     if (reply_->error() != QNetworkReply::NoError) {
-        api_->log(QDateTime::currentDateTime().toString("[HH:mm:ss.zzz] ")
-                  + QStringLiteral("← ERR (%1ms) %2 | %3")
-                    .arg(ms)
-                    .arg(reply_->errorString())
-                    .arg(QString::fromUtf8(responseBody.left(300))));
-        emit finished(false, reply_->errorString());
+        const bool wasCancelled = (reply_->error() == QNetworkReply::OperationCanceledError);
+        if (!wasCancelled) {
+            api_->log(QDateTime::currentDateTime().toString("[HH:mm:ss.zzz] ")
+                      + QStringLiteral("← ERR (%1ms) %2 | %3")
+                        .arg(ms)
+                        .arg(reply_->errorString())
+                        .arg(QString::fromUtf8(responseBody.left(300))));
+        }
+        emit finished(false, wasCancelled ? QString{"Cancelled"} : reply_->errorString());
     } else {
         api_->log(QDateTime::currentDateTime().toString("[HH:mm:ss.zzz] ")
                   + QStringLiteral("← %1 (%2ms) upload complete")
