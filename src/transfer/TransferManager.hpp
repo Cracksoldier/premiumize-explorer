@@ -1,4 +1,5 @@
 #pragma once
+#include <QHash>
 #include <QObject>
 #include <QString>
 #include <QStringList>
@@ -25,8 +26,10 @@ public:
                          const QString& itemName);
     void cancelAll();
     void cancelJob(int jobId);
+    void retryJob(int jobId);
 
 signals:
+    void jobQueued(int jobId, QString name, qint64 totalBytes);
     void jobStarted(int jobId, QString name, qint64 totalBytes);
     void jobProgress(int jobId, qint64 bytes, qint64 total,
                      qint64 elapsedMs, qint64 etaMs, double bytesPerSec);
@@ -35,11 +38,19 @@ signals:
     void allFinished();
 
 private:
+    struct PendingJob {
+        int id;
+        QString name;
+        qint64 size;
+        std::function<QObject*()> factory;
+    };
+
     void dispatchNext();
     void onJobFinished(QObject* job, int jobId, bool success, const QString& error);
 
-    api::PremiumizeApi*                                        api_;
-    std::deque<std::pair<int, std::function<QObject*()>>>     queue_;
-    std::vector<std::pair<int, QObject*>>                      active_;
-    int                                                        nextJobId_ = 0;
+    api::PremiumizeApi*                      api_;
+    std::deque<PendingJob>                   queue_;
+    std::vector<std::pair<int, QObject*>>    active_;
+    QHash<int, std::function<void()>>        retryActions_;
+    int                                      nextJobId_ = 0;
 };
