@@ -159,8 +159,9 @@ void TransferProgressWindow::on_jobQueued(int id, const QString& name, qint64 to
     connect(cancelBtn, &QToolButton::clicked, this, [this, id]() {
         manager_->cancelJob(id);
     });
-    connect(retryBtn, &QToolButton::clicked, this, [this, id]() {
-        manager_->retryJob(id);
+    connect(retryBtn, &QToolButton::clicked, this, [this, id, retryBtn]() {
+        if (manager_->retryJob(id))
+            retryBtn->hide();
     });
 
     updateButtonStates();
@@ -211,7 +212,7 @@ void TransferProgressWindow::on_jobFinished(int id, bool success, const QString&
                                      ? QStringLiteral("Done")
                                      : QStringLiteral("Done · %1").arg(sizeStr));
         setRowStatus(*row, JobStatus::Completed);
-    } else if (error == "Cancelled") {
+    } else if (error == TransferManager::kCancelledError) {
         row->statsLabel->setText("Cancelled");
         setRowStatus(*row, JobStatus::Cancelled);
     } else {
@@ -236,9 +237,12 @@ void TransferProgressWindow::on_cancelAll_clicked()
 void TransferProgressWindow::on_clearFinished_clicked()
 {
     std::vector<QWidget*> keep;
-    for (const auto& r : rows_)
+    for (const auto& r : rows_) {
         if (r.status == JobStatus::Queued || r.status == JobStatus::Running)
             keep.push_back(r.container);
+        else
+            manager_->dismissJob(r.jobId);
+    }
 
     while (jobLayout_->count() > 1) {
         auto* item = jobLayout_->takeAt(0);

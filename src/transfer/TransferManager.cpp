@@ -79,7 +79,7 @@ void TransferManager::enqueueDownload(const QString& remoteUrl,
 void TransferManager::cancelAll()
 {
     for (const auto& pj : queue_)
-        emit jobFinished(pj.id, false, "Cancelled");
+        emit jobFinished(pj.id, false, kCancelledError);
     queue_.clear();
 
     const auto snapshot = active_;  // cancel() emits finished() synchronously, which modifies active_
@@ -87,6 +87,9 @@ void TransferManager::cancelAll()
         if (auto* up = qobject_cast<UploadJob*>(obj)) up->cancel();
         else if (auto* dl = qobject_cast<DownloadJob*>(obj)) dl->cancel();
     }
+    // If there were no active jobs, onJobFinished is never called and allFinished won't fire.
+    if (snapshot.empty())
+        emit allFinished();
 }
 
 void TransferManager::cancelJob(int jobId)
@@ -95,7 +98,7 @@ void TransferManager::cancelJob(int jobId)
     for (auto it = queue_.begin(); it != queue_.end(); ++it) {
         if (it->id == jobId) {
             queue_.erase(it);
-            emit jobFinished(jobId, false, "Cancelled");
+            emit jobFinished(jobId, false, kCancelledError);
             return;
         }
     }
@@ -111,11 +114,17 @@ void TransferManager::cancelJob(int jobId)
     else if (auto* up = qobject_cast<UploadJob*>(target)) up->cancel();
 }
 
-void TransferManager::retryJob(int jobId)
+bool TransferManager::retryJob(int jobId)
 {
-    if (!retryActions_.contains(jobId)) return;
+    if (!retryActions_.contains(jobId)) return false;
     auto fn = retryActions_.take(jobId);
     fn();
+    return true;
+}
+
+void TransferManager::dismissJob(int jobId)
+{
+    retryActions_.remove(jobId);
 }
 
 void TransferManager::dispatchNext()
@@ -131,6 +140,8 @@ void TransferManager::dispatchNext()
 void TransferManager::onJobFinished(QObject* job, int jobId, bool success, const QString& error)
 {
     emit jobFinished(jobId, success, error);
+    if (success)
+        retryActions_.remove(jobId);  // completed jobs need no retry; failed/cancelled keep their action
     if (auto* up = qobject_cast<UploadJob*>(job)) {
         emit uploadFinished(up->targetFolderId(), success, error);
     }

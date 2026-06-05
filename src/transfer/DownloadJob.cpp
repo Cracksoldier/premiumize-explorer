@@ -67,7 +67,8 @@ void DownloadJob::on_finished()
     reply_->deleteLater();
     if (reply_->error() != QNetworkReply::NoError) {
         outFile_.remove();
-        emit finished(false, reply_->errorString());
+        const bool wasCancelled = (reply_->error() == QNetworkReply::OperationCanceledError);
+        emit finished(false, wasCancelled ? QString{"Cancelled"} : reply_->errorString());
     } else {
         emit finished(true, {});
     }
