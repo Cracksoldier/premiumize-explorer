@@ -39,7 +39,7 @@ MainWindow::MainWindow(QWidget* parent)
     api_->setApiKey(AppConfig::instance().apiKey());
 
     transferManager_      = new TransferManager(api_, this);
-    progressWindow_       = new TransferProgressWindow(transferManager_, this);
+    progressWindow_       = new TransferProgressWindow(transferManager_, nullptr);
     logWindow_            = new LogWindow(this);
     cloudTransfersWindow_ = new CloudTransfersWindow(api_, this);
 
