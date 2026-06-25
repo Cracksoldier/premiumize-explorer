@@ -53,7 +53,6 @@ private:
     void    updateButtonStates();
     void    updateStatusBar();
     void    scrollToActive();
-    void    scrollToBottom();
 
     QScrollArea*        scrollArea_;
     QVBoxLayout*        jobLayout_;

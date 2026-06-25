@@ -13,7 +13,6 @@
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QStyle>
-#include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
 #include <QWheelEvent>
@@ -82,6 +81,15 @@ TransferProgressWindow::TransferProgressWindow(TransferManager* manager, QWidget
         if (state == Qt::Checked)
             scrollToActive();
     });
+
+    // Permanent handler: fires whenever content grows or shrinks (new job added,
+    // rows cleared, window resized). A single connection avoids the per-enqueue
+    // SingleShotConnection accumulation problem.
+    connect(scrollArea_->verticalScrollBar(), &QScrollBar::rangeChanged,
+            this, [this](int, int) {
+                if (autoScrollCheck_->isChecked())
+                    scrollToActive();
+            });
 
     connect(manager_, &TransferManager::jobQueued,   this, &TransferProgressWindow::on_jobQueued);
     connect(manager_, &TransferManager::jobStarted,  this, &TransferProgressWindow::on_jobStarted);
@@ -171,7 +179,6 @@ void TransferProgressWindow::on_jobQueued(int id, const QString& name, qint64 to
 
     updateButtonStates();
     updateStatusBar();
-    scrollToBottom();
 }
 
 void TransferProgressWindow::on_jobStarted(int id, const QString& /*name*/, qint64 /*total*/)
@@ -275,6 +282,8 @@ void TransferProgressWindow::on_clearFinished_clicked()
 
     updateButtonStates();
     updateStatusBar();
+    if (autoScrollCheck_->isChecked())
+        scrollToActive();
 }
 
 void TransferProgressWindow::setRowStatus(JobRow& row, JobStatus status)
@@ -340,27 +349,23 @@ void TransferProgressWindow::updateStatusBar()
 
 void TransferProgressWindow::scrollToActive()
 {
+    // Prefer the last Running row (live progress visible); fall back to the last
+    // Queued row (most recently added item) if nothing is running yet.
+    const JobRow* best = nullptr;
     for (auto it = rows_.rbegin(); it != rows_.rend(); ++it) {
-        if (it->status == JobStatus::Queued || it->status == JobStatus::Running) {
-            scrollArea_->ensureWidgetVisible(it->container);
-            return;
+        if (it->status == JobStatus::Running) {
+            best = &*it;
+            break;
         }
+        if (it->status == JobStatus::Queued && !best)
+            best = &*it;
     }
-    scrollArea_->verticalScrollBar()->setValue(scrollArea_->verticalScrollBar()->maximum());
+    if (best)
+        scrollArea_->ensureWidgetVisible(best->container);
+    else
+        scrollArea_->verticalScrollBar()->setValue(scrollArea_->verticalScrollBar()->maximum());
 }
 
-void TransferProgressWindow::scrollToBottom()
-{
-    if (!autoScrollCheck_->isChecked()) return;
-    // rangeChanged fires after QScrollArea updates its scrollbar range from the
-    // resized content widget — at that point maximum() is valid. If no range
-    // change occurs the new item fits without scrolling, so no action is needed.
-    connect(scrollArea_->verticalScrollBar(), &QScrollBar::rangeChanged,
-            this, [this](int /*min*/, int /*max*/) {
-                if (autoScrollCheck_->isChecked())
-                    scrollToActive();
-            }, Qt::SingleShotConnection);
-}
 
 TransferProgressWindow::JobRow* TransferProgressWindow::findRow(int jobId)
 {
