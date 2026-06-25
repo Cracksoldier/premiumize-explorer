@@ -9,7 +9,7 @@ A desktop file browser for [Premiumize.me](https://www.premiumize.me) cloud stor
 - **Two-pane layout** inspired by Total Commander — local filesystem on the left, Premiumize.me cloud on the right
 - **Drag & drop** to upload (local → cloud) or download (cloud → local); also via right-click context menu
 - **Auto-refresh** — cloud pane updates automatically when an upload into the displayed folder completes
-- **Non-blocking transfer progress window** showing speed, ETA, elapsed time, and bytes transferred per file
+- **Non-blocking transfer progress window** showing speed, ETA, elapsed time, and bytes transferred per file; auto-scrolls to the active transfer; stays visible when the main window is minimised; optional **Stay on top** (X11 only — disabled automatically under Wayland)
 - **Folder navigation** — breadcrumb path label; **↑ Up** always at the top of each list, hidden only at root
 - **Cloud operations**: create folder, delete file/folder, context menu; **multi-select** with Ctrl+Click / Shift+Click — right-click → **Download** enqueues each selected file directly and each selected folder as a `.zip` archive
 - **Local folder creation** — click **+ Folder** in the local pane toolbar or right-click → **New Folder…** to create a directory without leaving the app
@@ -86,6 +86,8 @@ api_key=your_key_here
 last_local_path=/home/user/Downloads
 window_geometry=...
 splitter_sizes=...
+dark_mode=false
+transfers_stay_on_top=false
 ```
 
 ## Project structure

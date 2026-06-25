@@ -368,6 +368,7 @@
         <li><div class="group">Subsystems</div></li>
         <li><a href="#upload-flow">Upload flow</a></li>
         <li><a href="#transfer-manager">Transfer manager</a></li>
+        <li><a href="#transfer-progress">Transfer progress window</a></li>
         <li><a href="#batch-download">Batch download wizard</a></li>
         <li><a href="#cloud-transfers">Cloud transfers window</a></li>
         <li><a href="#log-window">API log window</a></li>
@@ -399,7 +400,7 @@
           <tr><td><code>PremiumizeModel</code></td><td><code>src/model/PremiumizeModel.hpp</code></td><td><code>QAbstractListModel</code> for the cloud pane. Flat list, one folder at a time.</td></tr>
           <tr><td><code>UpEntryProxyModel</code></td><td><code>src/model/UpEntryProxyModel.hpp</code></td><td><code>QIdentityProxyModel</code> wrapping <code>QFileSystemModel</code> for the local pane.</td></tr>
           <tr><td><code>FilePane</code></td><td><code>src/ui/FilePane.hpp</code></td><td>Reusable widget for both panes. Handles drag/drop, context menus, and toolbar actions.</td></tr>
-          <tr><td><code>TransferProgressWindow</code></td><td><code>src/ui/TransferProgressWindow.hpp</code></td><td>Non-modal tool window tracking local upload/download jobs.</td></tr>
+          <tr><td><code>TransferProgressWindow</code></td><td><code>src/ui/TransferProgressWindow.hpp</code></td><td>Non-modal tool window tracking local upload/download jobs. Created with <code>parent = nullptr</code> so it is not minimised together with <code>MainWindow</code>. Includes auto-scroll and an optional Stay on top checkbox.</td></tr>
           <tr><td><code>CloudTransfersWindow</code></td><td><code>src/ui/CloudTransfersWindow.hpp</code></td><td>Non-modal tool window showing Premiumize server-side transfers. Polls every 5 s.</td></tr>
           <tr><td><code>LogWindow</code></td><td><code>src/ui/LogWindow.hpp</code></td><td>Non-modal tool window with a timestamped log of all API requests and responses.</td></tr>
           <tr><td><code>BatchDownloadWizard</code></td><td><code>src/ui/BatchDownloadWizard.hpp</code></td><td>Modal <code>QWizard</code> — search cloud files by keyword, select with checkboxes, pick a destination, then download sequentially with dual progress bars and a per-file status list.</td></tr>
@@ -825,6 +826,23 @@ void cancelJob(int jobId);   // cancel one specific job only</pre>
 
       <div class="note">
         <strong>cancelAll() / cancelJob() iterator safety:</strong> <code>QNetworkReply::abort()</code> emits <code>finished</code> synchronously, which chains into <code>onJobFinished()</code> → <code>active_.erase()</code>. <code>cancelAll()</code> iterates a snapshot copy of <code>active_</code>; <code>cancelJob()</code> exits its search loop and saves the target pointer before calling <code>cancel()</code>. Both approaches let the original vector be modified freely during cancellation.
+      </div>
+    </div>
+
+    <!-- ══ Transfer progress window ══ -->
+    <div class="section" id="transfer-progress">
+      <h2>Transfer progress window</h2>
+      <p><code>TransferProgressWindow</code> (<code>src/ui/TransferProgressWindow.hpp</code>) is a non-modal <code>Qt::Tool</code> window that lists every local upload and download job managed by <code>TransferManager</code>. It is created with <code>parent = nullptr</code> so the window manager does not minimise it together with <code>MainWindow</code>.</p>
+
+      <h3>Auto-scroll</h3>
+      <p>A single permanent <code>QScrollBar::rangeChanged</code> connection drives auto-scroll — there is no per-item one-shot connection. When the scroll area's content grows (new job added) or shrinks (rows cleared), the handler calls <code>scrollToActive()</code> if the auto-scroll checkbox is checked. The same function is called when the checkbox is re-enabled and when <code>on_clearFinished_clicked()</code> finishes rebuilding the layout.</p>
+      <p><code>scrollToActive()</code> iterates <code>rows_</code> in reverse and calls <code>scrollArea_-&gt;ensureWidgetVisible()</code> on the last <strong>Running</strong> row (active download in progress) — falling back to the last <strong>Queued</strong> row if nothing is running yet. This keeps live progress bars visible even when many items are queued below them.</p>
+      <p>Manual scroll (mouse wheel or scrollbar drag) unchecks the auto-scroll checkbox via the <code>sliderPressed</code> and wheel <code>eventFilter</code> connections.</p>
+
+      <h3>Stay on top</h3>
+      <p>The "Stay on top" checkbox toggles <code>Qt::WindowStaysOnTopHint</code> on the window flags and calls <code>show()</code> immediately after (required by Qt to apply flag changes to a visible window). The preference is persisted in <code>AppConfig</code> under <code>ui/transfers_stay_on_top</code>.</p>
+      <div class="note">
+        <strong>Wayland limitation:</strong> The XDG-shell Wayland protocol does not provide applications with an API to stay above windows from other processes. On a Wayland session (<code>QGuiApplication::platformName() == "wayland"</code>), the checkbox is disabled with an explanatory tooltip. The feature works as expected on X11.
       </div>
     </div>
 
