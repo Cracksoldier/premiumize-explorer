@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <QCheckBox>
+#include <QGuiApplication>
 #include <QEvent>
 #include <QFrame>
 #include <QHBoxLayout>
@@ -55,10 +56,15 @@ TransferProgressWindow::TransferProgressWindow(TransferManager* manager, QWidget
     autoScrollCheck_->setChecked(true);
 
     stayOnTopCheck_ = new QCheckBox("Stay on top", this);
-    const bool onTop = AppConfig::instance().transfersStayOnTop();
-    stayOnTopCheck_->setChecked(onTop);
-    if (onTop)
-        setWindowFlags(windowFlags() | Qt::WindowStaysOnTopHint);
+    if (QGuiApplication::platformName() == "wayland") {
+        stayOnTopCheck_->setEnabled(false);
+        stayOnTopCheck_->setToolTip("Not supported under Wayland");
+    } else {
+        const bool onTop = AppConfig::instance().transfersStayOnTop();
+        stayOnTopCheck_->setChecked(onTop);
+        if (onTop)
+            setWindowFlags(windowFlags() | Qt::WindowStaysOnTopHint);
+    }
 
     clearBtn_ = new QToolButton(this);
     clearBtn_->setIcon(style()->standardIcon(QStyle::SP_DialogDiscardButton));
