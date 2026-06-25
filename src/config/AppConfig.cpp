@@ -71,6 +71,17 @@ void AppConfig::setDarkModeEnabled(bool dark)
     settings_.sync();
 }
 
+bool AppConfig::transfersStayOnTop() const
+{
+    return settings_.value("ui/transfers_stay_on_top", false).toBool();
+}
+
+void AppConfig::setTransfersStayOnTop(bool onTop)
+{
+    settings_.setValue("ui/transfers_stay_on_top", onTop);
+    settings_.sync();
+}
+
 bool AppConfig::isConfigured() const
 {
     return !apiKey().isEmpty();

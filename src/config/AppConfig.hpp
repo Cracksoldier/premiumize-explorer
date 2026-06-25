@@ -22,6 +22,9 @@ public:
     bool darkModeEnabled() const;
     void setDarkModeEnabled(bool dark);
 
+    bool transfersStayOnTop() const;
+    void setTransfersStayOnTop(bool onTop);
+
     bool isConfigured() const;
 
 private:

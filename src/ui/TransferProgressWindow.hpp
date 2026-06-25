@@ -60,6 +60,7 @@ private:
     QToolButton*        clearBtn_;
     QLabel*             statusBar_;
     QCheckBox*          autoScrollCheck_;
+    QCheckBox*          stayOnTopCheck_;
     TransferManager*    manager_;
     std::vector<JobRow> rows_;
 };

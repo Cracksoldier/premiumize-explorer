@@ -1,5 +1,6 @@
 #include "TransferProgressWindow.hpp"
 #include "FormatHelpers.hpp"
+#include "config/AppConfig.hpp"
 #include "transfer/TransferManager.hpp"
 
 #include <algorithm>
@@ -53,6 +54,12 @@ TransferProgressWindow::TransferProgressWindow(TransferManager* manager, QWidget
     autoScrollCheck_ = new QCheckBox("Auto-scroll", this);
     autoScrollCheck_->setChecked(true);
 
+    stayOnTopCheck_ = new QCheckBox("Stay on top", this);
+    const bool onTop = AppConfig::instance().transfersStayOnTop();
+    stayOnTopCheck_->setChecked(onTop);
+    if (onTop)
+        setWindowFlags(windowFlags() | Qt::WindowStaysOnTopHint);
+
     clearBtn_ = new QToolButton(this);
     clearBtn_->setIcon(style()->standardIcon(QStyle::SP_DialogDiscardButton));
     clearBtn_->setToolTip("Clear finished transfers");
@@ -64,6 +71,7 @@ TransferProgressWindow::TransferProgressWindow(TransferManager* manager, QWidget
             this, &TransferProgressWindow::on_cancelAll_clicked);
 
     btnRow->addWidget(autoScrollCheck_);
+    btnRow->addWidget(stayOnTopCheck_);
     btnRow->addStretch();
     btnRow->addWidget(clearBtn_);
     btnRow->addWidget(cancelAllBtn_);
@@ -80,6 +88,14 @@ TransferProgressWindow::TransferProgressWindow(TransferManager* manager, QWidget
     connect(autoScrollCheck_, &QCheckBox::checkStateChanged, this, [this](Qt::CheckState state) {
         if (state == Qt::Checked)
             scrollToActive();
+    });
+
+    connect(stayOnTopCheck_, &QCheckBox::checkStateChanged, this, [this](Qt::CheckState state) {
+        const bool onTop = (state == Qt::Checked);
+        AppConfig::instance().setTransfersStayOnTop(onTop);
+        setWindowFlags(onTop ? windowFlags() | Qt::WindowStaysOnTopHint
+                             : windowFlags() & ~Qt::WindowStaysOnTopHint);
+        show(); // required after setWindowFlags()
     });
 
     // Permanent handler: fires whenever content grows or shrinks (new job added,
