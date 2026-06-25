@@ -52,6 +52,7 @@ private:
     void    setRowStatus(JobRow& row, JobStatus status);
     void    updateButtonStates();
     void    updateStatusBar();
+    void    scrollToActive();
     void    scrollToBottom();
 
     QScrollArea*        scrollArea_;

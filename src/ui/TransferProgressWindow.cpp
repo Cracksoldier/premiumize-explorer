@@ -78,6 +78,11 @@ TransferProgressWindow::TransferProgressWindow(TransferManager* manager, QWidget
             this, [this]() { autoScrollCheck_->setChecked(false); });
     scrollArea_->viewport()->installEventFilter(this);
 
+    connect(autoScrollCheck_, &QCheckBox::checkStateChanged, this, [this](Qt::CheckState state) {
+        if (state == Qt::Checked)
+            scrollToActive();
+    });
+
     connect(manager_, &TransferManager::jobQueued,   this, &TransferProgressWindow::on_jobQueued);
     connect(manager_, &TransferManager::jobStarted,  this, &TransferProgressWindow::on_jobStarted);
     connect(manager_, &TransferManager::jobProgress, this, &TransferProgressWindow::on_jobProgress);
@@ -333,13 +338,28 @@ void TransferProgressWindow::updateStatusBar()
     }
 }
 
+void TransferProgressWindow::scrollToActive()
+{
+    for (auto it = rows_.rbegin(); it != rows_.rend(); ++it) {
+        if (it->status == JobStatus::Queued || it->status == JobStatus::Running) {
+            scrollArea_->ensureWidgetVisible(it->container);
+            return;
+        }
+    }
+    scrollArea_->verticalScrollBar()->setValue(scrollArea_->verticalScrollBar()->maximum());
+}
+
 void TransferProgressWindow::scrollToBottom()
 {
     if (!autoScrollCheck_->isChecked()) return;
-    QTimer::singleShot(0, this, [this]() {
-        scrollArea_->verticalScrollBar()->setValue(
-            scrollArea_->verticalScrollBar()->maximum());
-    });
+    // rangeChanged fires after QScrollArea updates its scrollbar range from the
+    // resized content widget — at that point maximum() is valid. If no range
+    // change occurs the new item fits without scrolling, so no action is needed.
+    connect(scrollArea_->verticalScrollBar(), &QScrollBar::rangeChanged,
+            this, [this](int /*min*/, int /*max*/) {
+                if (autoScrollCheck_->isChecked())
+                    scrollToActive();
+            }, Qt::SingleShotConnection);
 }
 
 TransferProgressWindow::JobRow* TransferProgressWindow::findRow(int jobId)
