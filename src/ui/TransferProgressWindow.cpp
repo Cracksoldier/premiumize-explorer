@@ -312,7 +312,7 @@ void TransferProgressWindow::setRowStatus(JobRow& row, JobStatus status)
 {
     row.status = status;
 
-    QStyle::StandardPixmap sp;
+    QStyle::StandardPixmap sp = QStyle::SP_FileIcon;
     switch (status) {
     case JobStatus::Queued:    sp = QStyle::SP_FileIcon;             break;
     case JobStatus::Running:   sp = QStyle::SP_BrowserReload;        break;

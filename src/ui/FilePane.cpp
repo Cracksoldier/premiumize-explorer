@@ -38,7 +38,6 @@ public:
     }
 
     void setPattern(const QString& raw) {
-        beginFilterChange();
         pattern_ = raw;
         QString wild = raw;
         if (!wild.isEmpty() && !wild.contains('*') && !wild.contains('?'))
@@ -46,7 +45,7 @@ public:
         re_ = QRegularExpression(
             QRegularExpression::wildcardToRegularExpression(wild),
             QRegularExpression::CaseInsensitiveOption);
-        endFilterChange();
+        invalidateFilter();
     }
 
     // Helpers: take proxy-model indices and delegate to source model.
