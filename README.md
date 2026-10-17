@@ -25,7 +25,7 @@ A desktop file browser for [Premiumize.me](https://www.premiumize.me) cloud stor
 |---|---|
 | CMake | 3.21+ |
 | Qt | 6.5+ (Core, Widgets, Network, Svg) |
-| C++ compiler | GCC or Clang with C++20 support |
+| C++ compiler | GCC or Clang with C++20 support; MSVC (Visual Studio 2026) on Windows |
 | [Qlementine](https://github.com/oclero/qlementine) | fetched automatically by CMake |
 
 ## Build
@@ -49,6 +49,19 @@ cmake --build build/release --parallel
 ```
 
 Optional: enable AddressSanitizer with `-DPMEX_ENABLE_ASAN=ON`.
+
+### Windows (MSVC)
+
+Install Qt with the `msvc2022_64` kit, then build from any Visual Studio Developer shell using the `windows-msvc` preset (VS generator, forced x64 — so it also works from the default x86 Developer PowerShell):
+
+```powershell
+$env:QT_ROOT_DIR = "C:\Qt\6.11.1\msvc2022_64"
+cmake --preset windows-msvc
+cmake --build --preset windows-debug      # or windows-release
+.\build\windows\Debug\premiumize-explorer.exe
+```
+
+A post-build `windeployqt` step copies the Qt DLLs and plugins next to the exe, so it runs directly from the build directory (disable with `-DPMEX_WINDEPLOYQT=OFF`). `build\windows\premiumize-explorer.sln` can be opened in Visual Studio. To avoid setting `QT_ROOT_DIR`, create a gitignored `CMakeUserPresets.json` that inherits `windows-msvc` and sets `CMAKE_PREFIX_PATH`.
 
 ## First launch
 

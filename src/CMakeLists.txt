@@ -46,3 +46,19 @@ set_target_properties(premiumize-explorer PROPERTIES
     WIN32_EXECUTABLE TRUE
     MACOSX_BUNDLE    TRUE
 )
+
+# On Windows, copy Qt DLLs and plugins next to the exe after each build so it
+# runs straight from the build directory (and from the VS debugger).
+option(PMEX_WINDEPLOYQT "Run windeployqt after building on Windows" ON)
+if(WIN32 AND PMEX_WINDEPLOYQT AND TARGET Qt6::windeployqt)
+    add_custom_command(TARGET premiumize-explorer POST_BUILD
+        COMMAND Qt6::windeployqt
+            $<IF:$<CONFIG:Debug>,--debug,--release>
+            --no-translations
+            --verbose 0
+            $<TARGET_FILE:premiumize-explorer>
+        COMMENT "Deploying Qt runtime with windeployqt"
+        VERBATIM
+    )
+    set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT premiumize-explorer)
+endif()

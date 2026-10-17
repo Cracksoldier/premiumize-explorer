@@ -33,19 +33,19 @@ jobs:
             -DCMAKE_PREFIX_PATH="${{ env.Qt6_Dir }}"
 
       # VS generator is multi-config; --config Release selects the right output.
-      # The exe lands in build/src/Release/premiumize-explorer.exe.
+      # The exe lands in build/Release/premiumize-explorer.exe.
       - name: Build
         run: cmake --build build --parallel --config Release
 
       # windeployqt copies all required Qt DLLs, platform plugins, and
       # --compiler-runtime also copies the MSVC CRT DLLs → no VS install needed.
       - name: Run windeployqt
-        run: windeployqt --release --compiler-runtime build\src\Release\premiumize-explorer.exe
+        run: windeployqt --release --compiler-runtime build\Release\premiumize-explorer.exe
 
       - name: Zip deployment directory
         run: |
           Compress-Archive `
-            -Path "build\src\Release\*" `
+            -Path "build\Release\*" `
             -DestinationPath "premiumize-explorer-windows-x64.zip"
 
       - name: Upload artifact

@@ -21,6 +21,17 @@ cmake --build build/release --parallel
 
 AddressSanitizer is available but off by default: `-DPMEX_ENABLE_ASAN=ON`.
 
+### Windows
+
+```powershell
+$env:QT_ROOT_DIR = "C:\Qt\6.11.1\msvc2022_64"   # or use a CMakeUserPresets.json (gitignored)
+cmake --preset windows-msvc
+cmake --build --preset windows-debug
+.\build\windows\Debug\premiumize-explorer.exe
+```
+
+The preset uses the Visual Studio generator with `-A x64` because the VS Developer PowerShell defaults to an **x86** toolchain, which cannot link against the x64-only Qt kit; a Ninja build only works from an x64 dev shell (`Enter-VsDevShell ... -Arch amd64`). `qt_standard_project_setup()` puts the exe in `build/<dir>/<Config>/`, **not** `build/<dir>/src/<Config>/`. A `POST_BUILD` `windeployqt` step (option `PMEX_WINDEPLOYQT`, default ON) makes it runnable in place.
+
 When adding a new `.cpp` file, add it to `src/CMakeLists.txt`'s `add_executable` list — there is no glob.
 
 ## Architecture
