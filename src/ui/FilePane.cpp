@@ -38,6 +38,9 @@ public:
     }
 
     void setPattern(const QString& raw) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
+        beginFilterChange();
+#endif
         pattern_ = raw;
         QString wild = raw;
         if (!wild.isEmpty() && !wild.contains('*') && !wild.contains('?'))
@@ -45,7 +48,11 @@ public:
         re_ = QRegularExpression(
             QRegularExpression::wildcardToRegularExpression(wild),
             QRegularExpression::CaseInsensitiveOption);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
+        endFilterChange(QSortFilterProxyModel::Direction::Rows);
+#else
         invalidateFilter();
+#endif
     }
 
     // Helpers: take proxy-model indices and delegate to source model.
