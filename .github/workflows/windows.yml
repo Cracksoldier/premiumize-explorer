@@ -37,10 +37,11 @@ jobs:
       - name: Build
         run: cmake --build build --parallel --config Release
 
-      # windeployqt copies all required Qt DLLs, platform plugins, and
-      # --compiler-runtime also copies the MSVC CRT DLLs → no VS install needed.
+      # CMake's post-build step already copies the MSVC runtime DLLs next to the
+      # exe (app-local, no installer needed); this ensures Qt DLLs and plugins
+      # are deployed even if Qt6::windeployqt isn't available as a CMake target.
       - name: Run windeployqt
-        run: windeployqt --release --compiler-runtime build\Release\premiumize-explorer.exe
+        run: windeployqt --release --no-compiler-runtime build\Release\premiumize-explorer.exe
 
       - name: Zip deployment directory
         run: |

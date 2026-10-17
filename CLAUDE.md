@@ -30,7 +30,7 @@ cmake --build --preset windows-debug
 .\build\windows\Debug\premiumize-explorer.exe
 ```
 
-The preset uses the Visual Studio generator with `-A x64` because the VS Developer PowerShell defaults to an **x86** toolchain, which cannot link against the x64-only Qt kit; a Ninja build only works from an x64 dev shell (`Enter-VsDevShell ... -Arch amd64`). `qt_standard_project_setup()` puts the exe in `build/<dir>/<Config>/`, **not** `build/<dir>/src/<Config>/`. A `POST_BUILD` `windeployqt` step (option `PMEX_WINDEPLOYQT`, default ON) makes it runnable in place.
+The preset uses the Visual Studio generator with `-A x64` because the VS Developer PowerShell defaults to an **x86** toolchain, which cannot link against the x64-only Qt kit; a Ninja build only works from an x64 dev shell (`Enter-VsDevShell ... -Arch amd64`). `qt_standard_project_setup()` puts the exe in `build/<dir>/<Config>/`, **not** `build/<dir>/src/<Config>/`. A `POST_BUILD` `windeployqt` step (option `PMEX_WINDEPLOYQT`, default ON) makes it runnable in place. For non-Debug configs it passes `--no-compiler-runtime` and a second `POST_BUILD` step copies the MSVC runtime DLLs found by `InstallRequiredSystemLibraries` app-locally instead of shipping `vc_redist.x64.exe` — so `build/windows/Release/` runs on a machine without the VC++ Redistributable. Generator expressions containing lists in these commands must be quoted and use `COMMAND_EXPAND_LISTS`, or CMake splits them at the semicolons.
 
 When adding a new `.cpp` file, add it to `src/CMakeLists.txt`'s `add_executable` list — there is no glob.
 

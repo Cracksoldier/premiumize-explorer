@@ -61,7 +61,7 @@ cmake --build --preset windows-debug      # or windows-release
 .\build\windows\Debug\premiumize-explorer.exe
 ```
 
-A post-build `windeployqt` step copies the Qt DLLs and plugins next to the exe, so it runs directly from the build directory (disable with `-DPMEX_WINDEPLOYQT=OFF`). `build\windows\premiumize-explorer.sln` can be opened in Visual Studio. To avoid setting `QT_ROOT_DIR`, create a gitignored `CMakeUserPresets.json` that inherits `windows-msvc` and sets `CMAKE_PREFIX_PATH`.
+A post-build step copies the Qt DLLs and plugins next to the exe, so it runs directly from the build directory (disable with `-DPMEX_WINDEPLOYQT=OFF`). Release builds also get the MSVC runtime DLLs bundled, so `build\windows\Release\` can be copied to another PC as-is, with no VC++ Redistributable install needed. `build\windows\premiumize-explorer.sln` can be opened in Visual Studio. To avoid setting `QT_ROOT_DIR`, create a gitignored `CMakeUserPresets.json` that inherits `windows-msvc` and sets `CMAKE_PREFIX_PATH`.
 
 ## First launch
 
