@@ -10,7 +10,7 @@ A desktop file browser for [Premiumize.me](https://www.premiumize.me) cloud stor
 - **Drag & drop** to upload (local → cloud) or download (cloud → local); also via right-click context menu
 - **Auto-refresh** — cloud pane updates automatically when an upload into the displayed folder completes
 - **Non-blocking transfer progress window** showing speed, ETA, elapsed time, and bytes transferred per file; auto-scrolls to the active transfer; stays visible when the main window is minimised; optional **Stay on top** (X11 only — disabled automatically under Wayland)
-- **Folder navigation** — breadcrumb path label; **↑ Up** always at the top of each list, hidden only at root
+- **Folder navigation** — breadcrumb path label; **↑ Up** always at the top of each list, hidden only at root; on Windows, a **drive button** in the local toolbar switches between drives (including USB and mapped network drives)
 - **Cloud operations**: create folder, delete file/folder, context menu; **multi-select** with Ctrl+Click / Shift+Click — right-click → **Download** enqueues each selected file directly and each selected folder as a `.zip` archive
 - **Local folder creation** — click **+ Folder** in the local pane toolbar or right-click → **New Folder…** to create a directory without leaving the app
 - **Cloud transfers monitor** — live view of server-side Premiumize transfers (torrents, URL downloads) with status, progress, speed and ETA; open via **View → Cloud Transfers**, auto-refreshes every 5 s
@@ -75,6 +75,7 @@ To change the key later: **File → Change API Key…**
 |---|---|
 | Navigate into a folder | Double-click |
 | Go up | Click **↑ Up** at the top of the list |
+| Switch drive (Windows) | Click the drive button (e.g. **C:**) in the local toolbar and pick a drive |
 | Upload files | Drag files from the local pane onto the cloud pane, or right-click a local file → **Upload to Cloud** |
 | Download files / folders | Drag from the cloud pane onto the local pane; or select one or more items (Ctrl+Click / Shift+Click) and right-click → **Download** — files download directly, folders download as `.zip` archives |
 | Create a local folder | Click **+ Folder** in the local pane toolbar or right-click → **New Folder…** |

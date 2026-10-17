@@ -20,7 +20,9 @@
 #include <QMimeData>
 #include <QRegularExpression>
 #include <QSortFilterProxyModel>
+#include <QStorageInfo>
 #include <QToolBar>
+#include <QToolButton>
 #include <QUrl>
 #include <QVBoxLayout>
 
@@ -119,6 +121,21 @@ void FilePane::setupLayout()
     }
 
     if (type_ == PaneType::Local) {
+#ifdef Q_OS_WIN
+        // Drive switcher: cdUp() stops at the drive root, so this is the only
+        // way to reach other drives. Menu is rebuilt on open to pick up
+        // newly attached or removed drives.
+        driveButton_ = new QToolButton(this);
+        driveButton_->setPopupMode(QToolButton::InstantPopup);
+        driveButton_->setToolTip("Switch drive");
+        auto* driveMenu = new QMenu(driveButton_);
+        driveButton_->setMenu(driveMenu);
+        connect(driveMenu, &QMenu::aboutToShow, this, [this, driveMenu] {
+            populateDriveMenu(driveMenu);
+        });
+        toolbar->addWidget(driveButton_);
+#endif
+
         auto* upAct = toolbar->addAction("↑ Up");
         connect(upAct, &QAction::triggered, this, &FilePane::on_upButton_clicked);
 
@@ -164,15 +181,59 @@ void FilePane::setupCloudModel()
             cloudFilterProxy_, &CloudFilterProxy::setPattern);
 }
 
-void FilePane::setLocalPath(const QString& path)
+void FilePane::setLocalPath(const QString& requestedPath)
 {
     if (type_ != PaneType::Local || !localModel_) return;
+    // The saved path may be on a drive that is no longer attached.
+    const QString path = QDir(requestedPath).exists() ? requestedPath : QDir::homePath();
     currentLocalPath_ = path;
     const auto srcIdx   = localModel_->setRootPath(path);
     const auto proxyIdx = upProxy_->setSourceRoot(srcIdx, !QDir(path).isRoot());
     view_->setRootIndex(proxyIdx);
     updatePathLabel();
+    updateDriveButton();
     emit localPathChanged(path);
+}
+
+static QString driveDisplayName(const QString& rootPath)
+{
+    QString name = QDir::toNativeSeparators(rootPath);
+    if (name.endsWith(QDir::separator()) && name.size() > 1) name.chop(1);
+    return name;
+}
+
+void FilePane::updateDriveButton()
+{
+    if (!driveButton_) return;
+    driveButton_->setText(driveDisplayName(QStorageInfo(currentLocalPath_).rootPath()));
+}
+
+void FilePane::populateDriveMenu(QMenu* menu)
+{
+    menu->clear();
+    const QString currentRoot = QStorageInfo(currentLocalPath_).rootPath();
+
+    for (const QFileInfo& drive : QDir::drives()) {
+        const QString root = drive.absoluteFilePath();
+        const QStorageInfo info(root);
+
+        QString text = driveDisplayName(root);
+        if (info.isValid() && !info.displayName().isEmpty() && info.displayName() != root)
+            text += QStringLiteral("  %1").arg(info.displayName());
+
+        auto* act = menu->addAction(text);
+        act->setCheckable(true);
+        act->setChecked(QString::compare(root, currentRoot, Qt::CaseInsensitive) == 0);
+        act->setEnabled(info.isValid() && info.isReady());
+        connect(act, &QAction::triggered, this, [this, root] {
+            if (!QStorageInfo(root).isReady()) {
+                QMessageBox::warning(this, "Switch Drive",
+                    QStringLiteral("Drive %1 is not ready.").arg(driveDisplayName(root)));
+                return;
+            }
+            setLocalPath(root);
+        });
+    }
 }
 
 void FilePane::setCloudListing(const QString& folderId,

@@ -6,7 +6,9 @@
 class QListView;
 class QLabel;
 class QLineEdit;
+class QMenu;
 class QToolBar;
+class QToolButton;
 class QFileSystemModel;
 class PremiumizeModel;
 class CloudFilterProxy;
@@ -63,6 +65,8 @@ private:
     void setupLocalModel();
     void setupCloudModel();
     void updatePathLabel();
+    void populateDriveMenu(QMenu* menu);
+    void updateDriveButton();
 
     PaneType         type_;
     QListView*       view_;
@@ -73,6 +77,7 @@ private:
     PremiumizeModel*   cloudModel_        = nullptr;
     CloudFilterProxy*  cloudFilterProxy_  = nullptr;
     QLineEdit*         filterEdit_        = nullptr;
+    QToolButton*       driveButton_       = nullptr;  // Windows only
 
     QString currentLocalPath_;
     QString currentCloudId_;
